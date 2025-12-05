@@ -13,12 +13,12 @@ public class Cliente {
 
         do {
             try {
-                // --- CONEXIÓN INICIAL ---
+                // Código para conectarse al servidor
                 Socket socket = new Socket("localhost", 8080);
                 DataOutputStream salida = new DataOutputStream(socket.getOutputStream());
                 DataInputStream entrada = new DataInputStream(socket.getInputStream());
                 
-                System.out.println("\n--- MENU PRINCIPAL ---");
+                System.out.println("\n*** MENU PRINCIPAL ***");
                 System.out.println("1. LOGIN");
                 System.out.println("2. REGISTRAR");
                 System.out.println("3. SALIR");
@@ -38,18 +38,19 @@ public class Cliente {
                     comando = "REGISTRAR";
                 }
                 
+                // Solicitar usuario y contraseña
                 System.out.print("Ingrese Usuario: ");
                 String usuario = scanner.nextLine();
                 
                 System.out.print("Ingrese Contraseña: ");
                 String password = scanner.nextLine();
                 
-                // Enviar credenciales
+                // Enviar credenciales.
                 String mensajeProtocolo = comando + ":" + usuario + ":" + password;
                 salida.writeUTF(mensajeProtocolo);
                 salida.flush();
                 
-                // Recibir respuesta
+                // Recibir respuesta del servidor.
                 String respuesta = entrada.readUTF();
                 System.out.println("\n[Servidor]: " + respuesta);
                 
@@ -64,22 +65,22 @@ public class Cliente {
                     System.out.println("\n¡Bienvenido al sistema de juego, " + usuario + "!");
 
                     while (enMenuJuego) {
-                        System.out.println("\n--- MENU DE JUEGO ---");
+                        System.out.println("\n*** MENU DE JUEGO ***");
                         System.out.println("1. Crear juego");
                         System.out.println("2. Unirse a sala");
-                        System.out.println("3. Cerrar sesión (Volver al inicio)");
+                        System.out.println("3. Cerrar sesión");
                         System.out.print("Elige una opción: ");
 
                         String opcionJuego = scanner.nextLine();
 
                         switch (opcionJuego) {
                             case "1":
-                                System.out.println("--> Enviando solicitud para CREAR JUEGO...");
+                                System.out.println("Crando sala...");
                                 // Aqui deberás implementar la lógica para crear un juego
                                 break;
 
                             case "2":
-                                System.out.println("--> Buscando salas para UNIRSE...");
+                                System.out.println("Buscando la sala para UNIRSE...");
                                 //Aqui se debe implementar la lógica para unirse a una sala
                                 break;
 
