@@ -12,12 +12,14 @@ public class Servidor {
             Socket sc;
 
             System.out.println("El server ha iniciado...");
+            
+            BaseDeDatos db = new BaseDeDatos();
 
             while (true) { 
                 sc = servidor.accept();
                 System.out.println("Un usuario se ha conectado al servidor.");
 
-                HiloCliente hilo = new HiloCliente(sc);
+                HiloCliente hilo = new HiloCliente(sc, db);
                 hilo.start();
             }
         } catch (IOException e) {
