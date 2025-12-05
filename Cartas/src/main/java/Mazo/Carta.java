@@ -1,4 +1,4 @@
-package Cartas.src.main.java;
+package Mazo;
 
 public class Carta {
     private final int valor;
