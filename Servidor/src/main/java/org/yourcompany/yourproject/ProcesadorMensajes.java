@@ -32,7 +32,7 @@ public class ProcesadorMensajes {
                 break;
 
             case "UNIRSE_SALA":
-                handleUnirseSala();
+                handleUnirseSala(partes);
                 break;
 
             case "SALIR":
@@ -79,21 +79,36 @@ public class ProcesadorMensajes {
         }
     }
 
-    private void handleCrearSala() {
-        if (cliente.getUsuarioActual() == null) {
-            cliente.enviarMensaje("Error: Debes iniciar sesión primero.");
-        } else {
-            System.out.println("Usuario " + cliente.getUsuarioActual() + " quiere crear sala.");
-            cliente.enviarMensaje("Sala creada con éxito (ID: Pendiente).");
-        }
+  private void handleCrearSala() {
+    if (cliente.getUsuarioActual() == null) {
+        cliente.enviarMensaje("Error: Debes iniciar sesión primero.");
+    } else {
+        int idSala = GestorSalas.crearSala(cliente);
+        cliente.enviarMensaje("Sala creada con éxito. ID: " + idSala);
+        cliente.enviarMensaje("Esperando jugadores... (Envía 'INICIAR' para comenzar)");
     }
+}
 
-    private void handleUnirseSala() {
-        if (cliente.getUsuarioActual() == null) {
-            cliente.enviarMensaje("Error: Debes iniciar sesión primero.");
-        } else {
-            System.out.println("Usuario " + cliente.getUsuarioActual() + " busca unirse.");
-            cliente.enviarMensaje("Unido a la sala (ID: Pendiente).");
-        }
+   private void handleUnirseSala(String[] partes) {
+    if (cliente.getUsuarioActual() == null) {
+        cliente.enviarMensaje("Error: Debes iniciar sesión primero.");
+        return;
     }
+    if (partes.length < 2) {
+        cliente.enviarMensaje("Error: Debes especificar el ID de la sala.");
+        return;
+    }
+    
+    try {
+        int idSala = Integer.parseInt(partes[1]);
+        Sala sala = GestorSalas.obtenerSala(idSala);
+        if (sala != null) {
+            sala.agregarJugador(cliente);
+        } else {
+            cliente.enviarMensaje("Error: Sala no encontrada.");
+        }
+    } catch (NumberFormatException e) {
+        cliente.enviarMensaje("Error: ID de sala inválido.");
+    }
+}
 }
