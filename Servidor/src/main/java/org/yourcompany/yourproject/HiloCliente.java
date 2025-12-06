@@ -1,9 +1,13 @@
 package org.yourcompany.yourproject;
 
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+
+import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Jugador;
+
 
 public class HiloCliente extends Thread {
     //Atributos de la clase.
@@ -56,7 +60,8 @@ public class HiloCliente extends Thread {
                 case "LOGIN":
                     // Si las credenciales son correctas
                     if (db.validarUsuario(usuario, password)) {
-                        salida.writeUTF("Sesion iniciada correctamente.");
+                        Jugador nuevoJugador = new Jugador(usuario);
+                         salida.writeUTF("bienvenido: "+nuevoJugador.getNombre());
                     } else { // Si las credenciales son incorrectas
                         salida.writeUTF("La sesion no pudo iniciarse: Usuario/Contraseña incorrectas.");
                     }

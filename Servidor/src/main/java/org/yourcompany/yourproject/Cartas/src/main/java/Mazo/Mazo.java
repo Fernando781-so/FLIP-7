@@ -1,4 +1,4 @@
-package Mazo;
+package org.yourcompany.yourproject.Cartas.src.main.java.Mazo;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
