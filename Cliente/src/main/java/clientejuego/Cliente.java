@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.Scanner;
 
-public class Cliente {
+public class Cliente {// Clase principal del cliente
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         boolean continuar = true; 
