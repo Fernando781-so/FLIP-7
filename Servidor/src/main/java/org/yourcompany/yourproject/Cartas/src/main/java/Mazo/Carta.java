@@ -3,6 +3,8 @@ package org.yourcompany.yourproject.Cartas.src.main.java.Mazo;
 public class Carta {
     private final int valor;
     private final TipoAccion tipo;
+    public int getValor() { return valor; }
+    public TipoAccion getTipo() { return tipo; }
 
     public Carta(int valor) {
         if (valor < 0 || valor > 12) {
@@ -18,7 +20,12 @@ public class Carta {
         this.tipo = tipo;
     }
 
-    public int getValor() { return valor; }
-    public TipoAccion getTipo() { return tipo; }
-    
+    @Override
+public String toString() {
+    if (this.tipo == TipoAccion.NUMERO) {
+        return "[" + this.valor + "]";
+    } else {
+        return "[" + this.tipo.toString() + "]"; // Saldrá [FREEZE], [FLIP_THREE], etc.
+    }
+}
 }
