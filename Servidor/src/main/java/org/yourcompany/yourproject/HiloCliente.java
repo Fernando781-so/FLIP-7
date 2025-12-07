@@ -13,10 +13,7 @@ public class HiloCliente extends Thread {
     
     private DataInputStream entrada;
     private DataOutputStream salida;
-    
-
     private ProcesadorMensajes procesador; 
-    
     private String usuarioActual = null; 
     private boolean conectado = true;
 
@@ -50,6 +47,7 @@ public class HiloCliente extends Thread {
             cerrarConexion();
         } 
     }
+    
 
 
 
@@ -65,7 +63,10 @@ public class HiloCliente extends Thread {
     }
 
     public void cerrarConexion() {
-        conectado = false;
+    conectado = false;
+    if (usuarioActual != null) {
+        Servidor.clientesOnline.remove(usuarioActual);
+    }
         try {
             if (socket != null && !socket.isClosed()) {
                 socket.close();
@@ -79,7 +80,9 @@ public class HiloCliente extends Thread {
         return usuarioActual;
     }
 
-    public void setUsuarioActual(String usuarioActual) {
-        this.usuarioActual = usuarioActual;
-    }
+public void setUsuarioActual(String usuarioActual) {
+    this.usuarioActual = usuarioActual;
+    // Registramos al usuario en la lista global del servidor
+    Servidor.clientesOnline.put(usuarioActual, this);
+}
 }

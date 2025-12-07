@@ -3,10 +3,15 @@ package org.yourcompany.yourproject;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Servidor {
-
+    
+public static ConcurrentHashMap<String, HiloCliente> clientesOnline = new ConcurrentHashMap<>();
     public static void main(String[] args) {
+
+        
+        
         try {
             ServerSocket servidor = new ServerSocket(8080);
             Socket sc;
