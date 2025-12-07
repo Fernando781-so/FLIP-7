@@ -303,18 +303,21 @@ public synchronized void procesarSeleccionObjetivo(HiloCliente cliente, String n
     private String obtenerListaCandidatos(String miNombre, boolean incluirme) {
         StringBuilder sb = new StringBuilder();
         for (String nombre : mapaNombreCliente.keySet()) {
-            if (!incluirme && nombre.equals(miNombre)) continue; // Saltar si no debo incluirme
+            if (!incluirme && nombre.equals(miNombre)) continue; 
             sb.append(nombre).append(",");
         }
         return sb.toString();
     }
-    
-    // Método helper necesario en GestorSalas
-    /* public static Sala buscarSalaDeJugador(HiloCliente cliente) {
-        for(Sala s : salas.values()) {
-             if(s.tieneJugador(cliente)) return s; // Necesitas implementar tieneJugador en Sala
-        }
-        return null;
+    public synchronized void removerJugador(HiloCliente cliente) {
+    if (clientesConectados.remove(cliente)) {
+        String nombre = cliente.getUsuarioActual();
+        mapaNombreCliente.remove(nombre);
+        mapaEstadoJugador.remove(cliente);
+        
+        broadcast("LOBBY_UPDATE: " + nombre + " ha abandonado la sala.");
+        
     }
-    */
+}
+    
+
 }

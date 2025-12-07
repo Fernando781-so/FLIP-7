@@ -28,11 +28,11 @@ public class GestorSalas {
         return sb.toString();
     }
     public static synchronized Sala buscarSalaDeJugador(HiloCliente cliente) {
-    for (Sala s : salas.values()) { // Recorre todas las salas creadas
+    for (Sala s : salas.values()) { 
         if (s.tieneJugador(cliente)) {
-            return s; // ¡La encontró! Devuelve la sala
+            return s; 
         }
     }
-    return null; // El jugador no está en ninguna sala
+    return null; 
 }
 }

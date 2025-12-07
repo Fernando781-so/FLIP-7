@@ -47,9 +47,6 @@ public class HiloCliente extends Thread {
             cerrarConexion();
         } 
     }
-    
-
-
 
     public void enviarMensaje(String msg) {
         try {
@@ -82,7 +79,6 @@ public class HiloCliente extends Thread {
 
 public void setUsuarioActual(String usuarioActual) {
     this.usuarioActual = usuarioActual;
-    // Registramos al usuario en la lista global del servidor
     Servidor.clientesOnline.put(usuarioActual, this);
 }
 }

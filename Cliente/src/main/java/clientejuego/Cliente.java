@@ -8,10 +8,10 @@ import java.util.Scanner;
 
 public class Cliente {
     
-    // Variables de estado para controlar qué menú mostrar
+
     private static boolean enSala = false;
     private static boolean esAnfitrion = false;
-    private static boolean esperandoObjetivo = false; // Para cartas Freeze/Flip
+    private static boolean esperandoObjetivo = false; 
     private static boolean juegoIniciado = false;
     private static boolean conectado = true;
 
@@ -22,12 +22,10 @@ public class Cliente {
 
         try {
             System.out.println("Conectando al servidor...");
-            // 1. Conexión única: Se mantiene viva toda la sesión
             Socket socket = new Socket(host, puerto);
             DataOutputStream salida = new DataOutputStream(socket.getOutputStream());
             DataInputStream entrada = new DataInputStream(socket.getInputStream());
 
-            // 2. Hilo de Escucha: Se encarga de recibir mensajes del servidor SIN bloquearte
             Thread hiloEscucha = new Thread(() -> {
                 try {
                     while (conectado) {
@@ -42,7 +40,7 @@ public class Cliente {
             });
             hiloEscucha.start();
 
-            // 3. Fase de Autenticación (Login/Registro)
+
             boolean logueado = false;
             while (!logueado && conectado) {
                 System.out.println("\n*** BIENVENIDO ***");
@@ -79,17 +77,16 @@ public class Cliente {
                 }
                 
 
-                else if (enSala && esAnfitrion && !juegoIniciado) {
-                    System.out.println("\n--- ERES EL ANFITRIÓN ---");
-                    System.out.println("1. Invitar a un amigo (Escribe: INVITAR:Nombre)");
-                    System.out.println("2. Iniciar partida (Escribe: INICIAR)");
-                    System.out.println("Escribe el comando o chatea:");
-                    
+                else if (enSala && !esAnfitrion && !juegoIniciado) {
+                    System.out.println("\n--- EN SALA DE ESPERA ---");
+                    System.out.println("Esperando a que el líder inicie...");
+                    System.out.println("Escribe 'SALIR' si quieres abandonar la sala."); 
+    
                     String input = scanner.nextLine();
-                    if (input.equals("INICIAR")) {
-                        salida.writeUTF("INICIAR_PARTIDA");
-                    } else if (input.startsWith("INVITAR:")) {
-                        salida.writeUTF(input); 
+                    if (input.equalsIgnoreCase("SALIR")) { 
+                    salida.writeUTF("SALIR_SALA");
+                    enSala = false; 
+                    System.out.println("Has salido de la sala.");
                     } else {
                         salida.writeUTF(input); 
                     }
@@ -144,14 +141,14 @@ public class Cliente {
         }
         else if (msg.startsWith("LOBBY UPDATE")) {
             enSala = true; 
-            // Si entra aquí siendo invitado, no activamos esAnfitrion
+          
         }
         else if (msg.startsWith("JUEGO INICIADO")) {
             juegoIniciado = true;
             System.out.println("!!! LA PARTIDA HA COMENZADO !!!");
         }
         else if (msg.startsWith("INVITACION")) {
-            // Parseamos: INVITACION:Host:ID
+ SALIR
             String[] partes = msg.split(":");
             System.out.println("******************************************");
             System.out.println("* " + partes[1] + " te invita a jugar en Sala " + partes[2]);
@@ -159,7 +156,7 @@ public class Cliente {
             System.out.println("******************************************");
         }
         else if (msg.startsWith("SELECCIONAR")) {
-            // El servidor pide que elijas víctima (Freeze o Flip)
+
             esperandoObjetivo = true;
             String[] partes = msg.split(":"); 
             System.out.println(">>> ACCIÓN REQUERIDA: " + partes[2]);
@@ -167,7 +164,7 @@ public class Cliente {
         }
     }
     
-    // Clase auxiliar simple para comunicación entre hilos
+
     static class ClientState {
         public static volatile boolean ultimoMensajeExito = false;
     }
