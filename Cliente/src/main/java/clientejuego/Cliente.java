@@ -3,64 +3,64 @@ package clientejuego;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.ConnectException; 
 import java.net.Socket;
 import java.util.Scanner;
 
-public class Cliente {// Clase principal del cliente
+public class Cliente {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         boolean continuar = true; 
-
+        String Host = "localhost";
         do {
             try {
-                // Código para conectarse al servidor
-                Socket socket = new Socket("localhost", 8080);
-                DataOutputStream salida = new DataOutputStream(socket.getOutputStream());
-                DataInputStream entrada = new DataInputStream(socket.getInputStream());
-                
                 System.out.println("\n*** MENU PRINCIPAL ***");
                 System.out.println("1. LOGIN");
                 System.out.println("2. REGISTRAR");
                 System.out.println("3. SALIR");
                 System.out.print("Opción: ");
-                
+
                 String opcion = scanner.nextLine();
-                
-                // Salir del programa
+
                 if (opcion.equals("3")) {
                     System.out.println("Cerrando cliente...");
-                    socket.close();
+                    continuar = false; 
                     break; 
                 }
+                
+                if (!opcion.equals("1") && !opcion.equals("2")) {
+                    System.out.println("Opción invalida. Intente de nuevo.");
+                    continue;
+                }
+
+                Socket socket = new Socket( Host, 8080);
+                
+                DataOutputStream salida = new DataOutputStream(socket.getOutputStream());
+                DataInputStream entrada = new DataInputStream(socket.getInputStream());
 
                 String comando = "LOGIN"; 
                 if (opcion.equals("2")) {
                     comando = "REGISTRAR";
                 }
-                
-                // Solicitar usuario y contraseña
+
                 System.out.print("Ingrese Usuario: ");
                 String usuario = scanner.nextLine();
-                
+
                 System.out.print("Ingrese Contraseña: ");
                 String password = scanner.nextLine();
-                
-                // Enviar credenciales.
+
                 String mensajeProtocolo = comando + ":" + usuario + ":" + password;
                 salida.writeUTF(mensajeProtocolo);
                 salida.flush();
-                
-                // Recibir respuesta del servidor.
+
                 String respuesta = entrada.readUTF();
                 System.out.println("\n[Servidor]: " + respuesta);
-                
-                // Cerramos este socket porque el servidor (HiloCliente) cierra tras responder
+
                 socket.close(); 
 
-                // Valida dación para entrar al menú de juego
                 if (respuesta.startsWith("Registro exitoso") || respuesta.startsWith("Sesion iniciada")) {
-                    
-                    boolean enMenuJuego = true; // Control del segundo menú
+
+                    boolean enMenuJuego = true; 
 
                     System.out.println("\n¡Bienvenido al sistema de juego, " + usuario + "!");
 
@@ -95,15 +95,21 @@ public class Cliente {// Clase principal del cliente
                         }
                     }
                 } 
-                // Si la respuesta fue "fallido" o "incorrectas", el if se ignora 
-                // y el ciclo principal (do-while) vuelve a empezar pidiendo Login/Registro.
+
+            } catch (ConnectException e) {
+                System.out.println("\n Error de Conexión: No se pudo conectar al servidor en" + Host + ". Verifique que el servidor esté en ejecución.");
+             
 
             } catch (IOException e) {
-                System.err.println("Error de conexión: " + e.getMessage());
-                continuar = false; 
+                System.out.println("\n Error de Comunicación/IO: " );
+     
+                
+            } catch (Exception e) {
+ 
+                 System.out.println("\n Error inesperado: ");
             }
         } while (continuar);
-        
+
         scanner.close(); 
     }
 }
