@@ -97,7 +97,7 @@ public class Cliente {
                 } 
 
             } catch (ConnectException e) {
-                System.out.println("\n Error de Conexión: No se pudo conectar al servidor en" + Host + ". Verifique que el servidor esté en ejecución.");
+                System.out.println("\n Error de Conexión: No se pudo conectar al servidor en " + Host + ". Verifique que el servidor esté en ejecución.");
              
 
             } catch (IOException e) {
