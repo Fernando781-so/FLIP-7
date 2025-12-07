@@ -148,7 +148,7 @@ public class Cliente {
             System.out.println("!!! LA PARTIDA HA COMENZADO !!!");
         }
         else if (msg.startsWith("INVITACION")) {
- SALIR
+ 
             String[] partes = msg.split(":");
             System.out.println("******************************************");
             System.out.println("* " + partes[1] + " te invita a jugar en Sala " + partes[2]);
