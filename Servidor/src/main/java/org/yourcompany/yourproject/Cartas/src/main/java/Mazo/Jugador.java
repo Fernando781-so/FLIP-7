@@ -3,51 +3,66 @@ package org.yourcompany.yourproject.Cartas.src.main.java.Mazo;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class Jugador {
     private String nombre;        
     private List<Carta> mano;     
-    private int puntaje;         
-    private boolean enLinea;      
-    private boolean jugando;      
+    private int puntajeRonda; 
+    private int puntajeTotal; 
+    private boolean plantado; 
+    private boolean eliminadoRonda; 
 
     public Jugador(String nombre) {
         this.nombre = nombre;
         this.mano = new ArrayList<>();
-        this.puntaje = 0;
-        this.enLinea = true;      
-        this.jugando = false;
+        this.puntajeRonda = 0;
+        this.puntajeTotal = 0;
+        this.plantado = false;
+        this.eliminadoRonda = false;
     }
 
-    
     public void recibirCarta(Carta carta) {
         this.mano.add(carta);
-       
     }
 
-    public String getNombre() {
-        return nombre;
-    }
-
-    public List<Carta> getMano() {
-        return mano;
-    }
-
-    public int getPuntaje() {
-        return puntaje;
-    }
-
-    public void setPuntaje(int puntaje) {
-        this.puntaje = puntaje;
-    }
+    public String getNombre() { return nombre; }
+    public List<Carta> getMano() { return mano; }
     
+    // Gestión de Puntos
+    public int getPuntajeRonda() { return puntajeRonda; }
+    public void setPuntajeRonda(int p) { this.puntajeRonda = p; }
     
-    public void calcularPuntaje() {
+    public int getPuntajeTotal() { return puntajeTotal; }
+    public void agregarPuntajeTotal(int p) { this.puntajeTotal += p; }
+
+    // Gestión de Estado
+    public boolean isPlantado() { return plantado; }
+    public void setPlantado(boolean plantado) { this.plantado = plantado; }
+
+    public boolean isEliminadoRonda() { return eliminadoRonda; }
+    public void setEliminadoRonda(boolean eliminado) { this.eliminadoRonda = eliminado; }
+
+    public void calcularPuntajeRonda() {
         int suma = 0;
         for (Carta c : this.mano) {
             suma += c.getValor();
         }
-        this.puntaje = suma;
+        this.puntajeRonda = suma;
     }
 
+
+    public int getCantidadNumericas() {
+        int conteo = 0;
+        for(Carta c : mano) {
+            if(c.getTipo() == TipoAccion.NUMERO) conteo++;
+        }
+        return conteo;
+    }
+
+
+    public void reiniciarRonda() {
+        this.mano.clear();
+        this.puntajeRonda = 0;
+        this.plantado = false;
+        this.eliminadoRonda = false;
+    }
 }

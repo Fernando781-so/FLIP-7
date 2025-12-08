@@ -139,11 +139,11 @@ public class Cliente {
             enSala = true;
             esAnfitrion = true;
         }
-        else if (msg.startsWith("LOBBY UPDATE")) {
+        else if (msg.startsWith("LOBBY_UPDATE")) {
             enSala = true; 
           
         }
-        else if (msg.startsWith("JUEGO INICIADO")) {
+        else if (msg.startsWith("JUEGO_INICIADO")) {
             juegoIniciado = true;
             System.out.println("!!! LA PARTIDA HA COMENZADO !!!");
         }

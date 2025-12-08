@@ -57,6 +57,10 @@ public class ProcesadorMensajes {
             case "SELECCIONAR_OBJETIVO": 
                 handleSeleccionObjetivo(partes);
                 break;
+                case "ROBAR":
+            case "PLANTARSE":
+                handleJugada(comando); // <--- Nuevo método que crearemos abajo
+                break;
 
             default:
                 cliente.enviarMensaje("Comando no reconocido.");
@@ -184,6 +188,17 @@ public class ProcesadorMensajes {
             cliente.enviarMensaje("SALIDA_EXITOSA: Has salido de la sala.");
         } else {
             cliente.enviarMensaje("Error: No estás en ninguna sala.");
+        }
+    }
+    private void handleJugada(String accion) {
+        // 1. Buscamos en qué sala está jugando este cliente
+        Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
+        
+ 
+        if (sala != null && sala.isJuegoIniciado()) {
+            sala.procesarAccionJugador(cliente, accion);
+        } else {
+            cliente.enviarMensaje("Error: No estás en una partida activa o no es tu turno.");
         }
     }
 }
