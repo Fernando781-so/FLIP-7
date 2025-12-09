@@ -1,13 +1,14 @@
 package org.yourcompany.yourproject;
 
-import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Carta;
-import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Jugador;
-import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Mazo;
-import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.TipoAccion;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Carta;
+import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Jugador;
+import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Mazo;
+import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.TipoAccion;
 
 public class Sala {
     private int id;
@@ -106,6 +107,7 @@ public class Sala {
 
         broadcast("TURNO: Es el turno de " + clienteActual.getUsuarioActual());
         clienteActual.enviarMensaje("TU_TURNO: ¿Qué deseas hacer? (ROBAR / PLANTARSE)");
+        
     }
 
     public synchronized void siguienteTurno() {
@@ -113,30 +115,37 @@ public class Sala {
         notificarTurno();
     }
 
-    public synchronized void procesarAccionJugador(HiloCliente cliente, String accion) {
-        if (!clientesConectados.get(indiceTurnoActual).equals(cliente)) {
-            cliente.enviarMensaje("Error: No es tu turno.");
+public synchronized void procesarAccionJugador(HiloCliente cliente, String accion) {
+    if (!clientesConectados.get(indiceTurnoActual).equals(cliente)) {
+        cliente.enviarMensaje("Error: No es tu turno.");
+        return;
+    }
+
+    if (accionPendiente != null && cliente.equals(jugadorPendienteDeAccion)) {
+        cliente.enviarMensaje("Error: Tienes una acción (" + accionPendiente.toString() + ") pendiente de resolver. Debes enviar el comando de SELECCIONAR:Nombre.");
+        return;
+    }
+
+    Jugador jugador = mapaEstadoJugador.get(cliente);
+
+    if (accion.equals("PLANTARSE")) {
+        jugador.setPlantado(true);
+        broadcast("JUEGO: " + jugador.getNombre() + " se planta con " + jugador.getPuntajeRonda() + " puntos.");
+        siguienteTurno(); 
+    } 
+    else if (accion.equals("ROBAR")) {
+        Carta carta = mazo.tomarCarta(); 
+        if (carta == null) {
+            broadcast("JUEGO: Se acabó el mazo.");
+            finalizarRonda(null);
             return;
         }
-
-        Jugador jugador = mapaEstadoJugador.get(cliente);
-
-        if (accion.equals("PLANTARSE")) {
-            jugador.setPlantado(true);
-            broadcast("JUEGO: " + jugador.getNombre() + " se planta con " + jugador.getPuntajeRonda() + " puntos.");
-            siguienteTurno(); // Pasa al siguiente
-        } 
-        else if (accion.equals("ROBAR")) {
-            Carta carta = mazo.tomarCarta(); 
-            if (carta == null) {
-                broadcast("JUEGO: Se acabó el mazo.");
-                finalizarRonda(null);
-                return;
-            }
-            broadcast("JUEGO: " + jugador.getNombre() + " sacó " + carta.toString());
-            procesarCartaSacada(cliente, jugador, carta);
-        }
+        broadcast("JUEGO: " + jugador.getNombre() + " sacó " + carta.toString());
+        procesarCartaSacada(cliente, jugador, carta); 
+    } else {
+        cliente.enviarMensaje("Error: Acción no válida. Usa ROBAR o PLANTARSE.");
     }
+}
 
     private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta carta) {
         // 1. Verificar si explotó (tiene el mismo número)
@@ -273,40 +282,49 @@ public class Sala {
         }
     }
 
-    public synchronized void procesarSeleccionObjetivo(HiloCliente cliente, String nombreVictima) {
-        if (!cliente.equals(jugadorPendienteDeAccion) || accionPendiente == null) {
-            cliente.enviarMensaje("Error: No se espera acción.");
-            return;
+ public synchronized void procesarSeleccionObjetivo(HiloCliente cliente, String nombreVictima) {
+    // 1. Verificar si hay una acción pendiente y si el cliente es el correcto
+    if (accionPendiente == null || !cliente.equals(jugadorPendienteDeAccion)) {
+        cliente.enviarMensaje("Error: No se espera una selección de objetivo o no es tu turno para seleccionar.");
+        return;
+    }
+    
+    HiloCliente victima = mapaNombreCliente.get(nombreVictima);
+    if (victima == null) {
+        cliente.enviarMensaje("Error: El jugador seleccionado no existe o no está en la sala.");
+        return;
+    }
+    
+    // 2. Ejecutar la acción
+    if (accionPendiente == TipoAccion.FREEZE) {
+        if (nombreVictima.equals(cliente.getUsuarioActual())) {
+            cliente.enviarMensaje("Error: No puedes congelarte a ti mismo.");
+            return; 
         }
         
-        HiloCliente victima = mapaNombreCliente.get(nombreVictima);
-        if (victima == null) return;
         Jugador jugVictima = mapaEstadoJugador.get(victima);
+        broadcast("FREEZE: " + cliente.getUsuarioActual() + " congela a " + nombreVictima);
+        
+        // La víctima queda plantada/inactiva para esta ronda
+        jugVictima.setPlantado(true); 
+        broadcast("EFECTO: " + nombreVictima + " ha quedado congelado (No puede robar más en esta ronda).");
+        
+        // Limpiar estado
+        accionPendiente = null;
+        jugadorPendienteDeAccion = null;
+        siguienteTurno(); 
 
-        if (accionPendiente == TipoAccion.FREEZE) {
-            if (nombreVictima.equals(cliente.getUsuarioActual())) {
-                cliente.enviarMensaje("Error: No puedes congelarte a ti mismo.");
-                return; 
-            }
-            broadcast("FREEZE: " + cliente.getUsuarioActual() + " congela a " + nombreVictima);
-            
-            // Regla Freeze: La víctima pierde su turno O queda "plantada" a la fuerza?
-            // Usualmente en Flip7, freeze evita que puedan jugar. Vamos a marcarlos como plantados/inactivos
-            jugVictima.setPlantado(true); 
-            broadcast("EFECTO: " + nombreVictima + " ha quedado congelado (No puede robar más en esta ronda).");
-            
-            accionPendiente = null;
-            jugadorPendienteDeAccion = null;
-            siguienteTurno(); 
-
-        } else if (accionPendiente == TipoAccion.FLIP_THREE) {
-            broadcast("FLIP_THREE: " + cliente.getUsuarioActual() + " ataca a " + nombreVictima);
-            aplicarFlipThree(cliente, nombreVictima);
-            accionPendiente = null;
-            jugadorPendienteDeAccion = null;
-            // aplicarFlipThree llama a siguienteTurno
-        }
+    } else if (accionPendiente == TipoAccion.FLIP_THREE) {
+        // En el caso de FLIP_THREE, el método aplicado ya gestiona el pase de turno.
+        broadcast("FLIP_THREE: " + cliente.getUsuarioActual() + " ataca a " + nombreVictima);
+        aplicarFlipThree(cliente, nombreVictima);
+        
+        // Limpiar estado
+        accionPendiente = null;
+        jugadorPendienteDeAccion = null;
+        // aplicarFlipThree() llama a siguienteTurno() al finalizar.
     }
+}
 
     public synchronized void aplicarFlipThree(HiloCliente atacante, String nombreVictima) {
         HiloCliente clienteVictima = mapaNombreCliente.get(nombreVictima);
