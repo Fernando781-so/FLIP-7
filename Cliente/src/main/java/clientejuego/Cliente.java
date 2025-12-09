@@ -178,7 +178,6 @@ public class Cliente {
       
     }
     
-
     static class ClientState {
         public static volatile boolean ultimoMensajeExito = false;
     }
