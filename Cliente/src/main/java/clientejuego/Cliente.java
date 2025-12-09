@@ -175,7 +175,7 @@ public class Cliente {
             System.out.println(">>> ACCIÓN REQUERIDA: " + partes[2]);
             System.out.println(">>> Candidatos: " + (partes.length > 3 ? partes[3] : ""));
         }
-        // Se pueden añadir más comandos para el juego aquí (p. ej., TU_TURNO)
+      
     }
     
 
