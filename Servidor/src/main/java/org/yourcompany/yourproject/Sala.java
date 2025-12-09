@@ -163,9 +163,9 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
                      broadcast("JUEGO: " + jugador.getNombre() + " usa SECOND CHANCE y se salva.");
                      eliminarSecondChance(jugador);
                      jugador.recibirCarta(carta);
-                     // Regla: Si usas turno para tomar carta, pasa el turno (a menos que quieras regla de "sigue jugando")
-                     // Según tu regla: "el turno pasa a otro jugador".
-                     verificarCondicionesVictoriaRonda(cliente, jugador);
+                     if(!verificarCondicionesVictoriaRonda(cliente, jugador)) {
+                         siguienteTurno(); // Solo pasamos turno si no ganó la ronda
+                     }
                 } else {
                      broadcast("EXPLOSION: " + jugador.getNombre() + " explotó con un " + carta.getValor());
                      jugador.setPuntajeRonda(0);
