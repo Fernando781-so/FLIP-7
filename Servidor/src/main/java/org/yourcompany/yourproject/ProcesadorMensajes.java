@@ -1,6 +1,5 @@
 package org.yourcompany.yourproject;
 
-import java.io.IOException;
 import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Jugador;
 public class ProcesadorMensajes {
 
