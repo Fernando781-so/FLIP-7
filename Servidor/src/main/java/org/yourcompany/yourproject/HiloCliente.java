@@ -14,8 +14,12 @@ public class HiloCliente extends Thread {
     private DataInputStream entrada;
     private DataOutputStream salida;
     private ProcesadorMensajes procesador; 
+    
     private String usuarioActual = null; 
     private boolean conectado = true;
+    
+    // IMPORTANTE: Referencia a la sala actual del jugador
+    private Sala salaActual = null; 
 
     public HiloCliente(Socket socket, BaseDeDatos db) {
         this.socket = socket;
@@ -28,15 +32,21 @@ public class HiloCliente extends Thread {
             entrada = new DataInputStream(socket.getInputStream());
             salida = new DataOutputStream(socket.getOutputStream());
 
-
+            // Pasamos 'this' al procesador
             this.procesador = new ProcesadorMensajes(this, db);
 
             while (conectado) {
                 try {
-                    String mensaje = entrada.readUTF();
+                    // 1. Leemos el mensaje
+                    String mensajeSucio = entrada.readUTF();
                     
+                    // 2. IMPORTANTE: Limpiamos espacios en blanco o saltos de línea
+                    String mensaje = mensajeSucio.trim();
 
-                    procesador.procesar(mensaje); 
+                    if (!mensaje.isEmpty()) {
+                        System.out.println("DEBUG RECIBIDO [" + usuarioActual + "]: " + mensaje);
+                        procesador.procesar(mensaje); 
+                    }
                     
                 } catch (EOFException e) {
                     cerrarConexion();
@@ -48,11 +58,12 @@ public class HiloCliente extends Thread {
         } 
     }
 
-    public void enviarMensaje(String msg) {
+    // Agregamos synchronized para evitar errores si varios hilos envían a la vez
+    public synchronized void enviarMensaje(String msg) {
         try {
             if (salida != null) {
                 salida.writeUTF(msg);
-                salida.flush();
+                salida.flush(); // Asegura que el mensaje salga INMEDIATAMENTE
             }
         } catch (IOException e) {
             System.out.println("No se pudo enviar mensaje a " + usuarioActual);
@@ -60,10 +71,14 @@ public class HiloCliente extends Thread {
     }
 
     public void cerrarConexion() {
-    conectado = false;
-    if (usuarioActual != null) {
-        Servidor.clientesOnline.remove(usuarioActual);
-    }
+        conectado = false;
+        // Si está en una sala, lo sacamos
+        if (salaActual != null) {
+            salaActual.removerJugador(this);
+        }
+        if (usuarioActual != null) {
+            Servidor.clientesOnline.remove(usuarioActual);
+        }
         try {
             if (socket != null && !socket.isClosed()) {
                 socket.close();
@@ -73,12 +88,13 @@ public class HiloCliente extends Thread {
         }
     }
 
-    public String getUsuarioActual() {
-        return usuarioActual;
-    }
+    // Getters y Setters para la Sala
+    public Sala getSalaActual() { return salaActual; }
+    public void setSalaActual(Sala sala) { this.salaActual = sala; }
 
-public void setUsuarioActual(String usuarioActual) {
-    this.usuarioActual = usuarioActual;
-    Servidor.clientesOnline.put(usuarioActual, this);
-}
+    public String getUsuarioActual() { return usuarioActual; }
+    public void setUsuarioActual(String usuarioActual) {
+        this.usuarioActual = usuarioActual;
+        Servidor.clientesOnline.put(usuarioActual, this);
+    }
 }
