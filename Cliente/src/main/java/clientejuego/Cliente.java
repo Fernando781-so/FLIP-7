@@ -8,7 +8,6 @@ import java.util.Scanner;
 
 public class Cliente {
     
-
     private static boolean enSala = false;
     private static boolean esAnfitrion = false;
     private static boolean esperandoObjetivo = false; 
@@ -58,7 +57,6 @@ public class Cliente {
                     
                     salida.writeUTF(comando + ":" + user + ":" + pass);
                     
-
                     try { Thread.sleep(500); } catch (InterruptedException e) {}
                     
                     if (ClientState.ultimoMensajeExito) { 
@@ -67,6 +65,7 @@ public class Cliente {
                 }
             }
 
+            // INICIO DEL BUCLE PRINCIPAL DE ENTRADA CON LÓGICA CONSOLIDADA
             while (conectado) {
 
                 if (esperandoObjetivo) {
@@ -74,28 +73,39 @@ public class Cliente {
                     String objetivo = scanner.nextLine();
                     salida.writeUTF("SELECCIONAR_OBJETIVO:" + objetivo);
                     esperandoObjetivo = false;
+                    // Pausa ligera para que el servidor procese y responda.
+                    try { Thread.sleep(100); } catch (InterruptedException e) {}
                 }
-                
 
-                else if (enSala && !esAnfitrion && !juegoIniciado) {
-                    System.out.println("\n--- EN SALA DE ESPERA ---");
-                    System.out.println("Esperando a que el líder inicie...");
-                    System.out.println("Escribe 'SALIR' si quieres abandonar la sala."); 
-    
+                else if (juegoIniciado) {
+                    // *** ESTA ES LA RUTA PRINCIPAL PARA COMANDOS DE JUEGO (ROBAR, PLANTARSE) ***
+                    System.out.print(">> Comando: ");
                     String input = scanner.nextLine();
-                    if (input.equalsIgnoreCase("SALIR")) { 
-                    salida.writeUTF("SALIR_SALA");
-                    enSala = false; 
-                    System.out.println("Has salido de la sala.");
+                    salida.writeUTF(input);
+                }
+
+                else if (enSala) {
+                    System.out.println("\n--- EN SALA DE ESPERA ---");
+                    if (esAnfitrion) {
+                        System.out.println("Escribe 'INICIAR_PARTIDA', 'INVITAR:Usuario' o 'SALIR_SALA'.");
                     } else {
-                        salida.writeUTF(input); 
+                        System.out.println("Esperando a que el líder inicie. Escribe 'SALIR_SALA'.");
+                    }
+                    System.out.print("Acción: ");
+                    String input = scanner.nextLine();
+                    salida.writeUTF(input);
+                    
+                    // Limpiar estados locales inmediatamente si es un comando de salida
+                    if (input.equalsIgnoreCase("SALIR_SALA")) {
+                        enSala = false;
+                        esAnfitrion = false;
                     }
                 }
 
-                else if (!enSala && !juegoIniciado) {
+                else { // Menú principal (no está en sala ni en juego)
                     System.out.println("\n*** MENU DE JUEGO ***");
                     System.out.println("1. Crear sala");
-                    System.out.println("2. Unirse a sala (Escribe: UNIRSE:ID)");
+                    System.out.println("2. Unirse a sala (UNIRSE:ID)");
                     System.out.println("3. Salir");
                     System.out.print("Acción: ");
                     
@@ -111,15 +121,14 @@ public class Cliente {
                     } else if (input.equals("3")) {
                         salida.writeUTF("SALIR");
                         conectado = false;
+                    } else {
+                        // Envía comandos desconocidos (ej: invitar sin estar en sala, etc.)
+                        salida.writeUTF(input);
                     }
                 }
-
-                else {
-                    String input = scanner.nextLine();
-                    salida.writeUTF(input);
-                }
             }
-            
+            // FIN DEL BUCLE PRINCIPAL DE ENTRADA
+
             socket.close();
             scanner.close();
 
@@ -141,14 +150,18 @@ public class Cliente {
         }
         else if (msg.startsWith("LOBBY_UPDATE")) {
             enSala = true; 
-          
         }
         else if (msg.startsWith("JUEGO_INICIADO")) {
             juegoIniciado = true;
             System.out.println("!!! LA PARTIDA HA COMENZADO !!!");
         }
+        else if (msg.startsWith("SALIDA_EXITOSA")) {
+            enSala = false;
+            esAnfitrion = false;
+            juegoIniciado = false; // Asegurar que el estado de juego se resetee
+        }
         else if (msg.startsWith("INVITACION")) {
- 
+
             String[] partes = msg.split(":");
             System.out.println("******************************************");
             System.out.println("* " + partes[1] + " te invita a jugar en Sala " + partes[2]);
@@ -156,12 +169,13 @@ public class Cliente {
             System.out.println("******************************************");
         }
         else if (msg.startsWith("SELECCIONAR")) {
-
+            // El servidor solicita una selección de objetivo
             esperandoObjetivo = true;
             String[] partes = msg.split(":"); 
             System.out.println(">>> ACCIÓN REQUERIDA: " + partes[2]);
             System.out.println(">>> Candidatos: " + (partes.length > 3 ? partes[3] : ""));
         }
+        // Se pueden añadir más comandos para el juego aquí (p. ej., TU_TURNO)
     }
     
 
