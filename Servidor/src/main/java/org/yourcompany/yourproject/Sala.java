@@ -259,7 +259,7 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         
     }
 
-    // --- MÉTODOS DE CARTAS ESPECIALES (Con ajustes para cambio de turno) ---
+    
 
         private void gestionarFinDeJuego() {
             this.jugadoresListosParaReiniciar = new HashMap<>();
@@ -282,6 +282,65 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
             });
             timerThread.start();
         }
+            public synchronized void procesarVoto(HiloCliente cliente, String comando) {
+                if (juegoIniciado) return; // Si el juego se inició de nuevo antes de que el voto llegara
+
+                if (jugadoresListosParaReiniciar.containsKey(cliente)) {
+                    cliente.enviarMensaje("Error: Ya has votado.");
+                    return;
+                }
+
+                if (comando.equals("REINICIAR")) {
+                    jugadoresListosParaReiniciar.put(cliente, true);
+                    broadcast("VOTO: " + cliente.getUsuarioActual() + " ha votado para REINICIAR.");
+                } else if (comando.equals("SALIR_SALA")) {
+                    // En lugar de añadir al mapa de votos, lo removemos de la sala inmediatamente
+                    removerJugador(cliente);
+                    cliente.enviarMensaje("SALIDA_EXITOSA: Has salido de la sala.");
+                    // No necesitamos contar votos de salida, ya que la salida es inmediata.
+                    // Si el cliente ya no está, ya no necesita votar por reiniciar.
+                }
+
+                // Verificar si todos los jugadores restantes (los que no salieron) han votado.
+                if (clientesConectados.size() == jugadoresListosParaReiniciar.size()) {
+                    terminarVotacion();
+                }
+            }
+
+                    private synchronized void terminarVotacion() {
+            // Si la votación terminó por tiempo, todos los que no votaron o no salieron, deben salir.
+            List<HiloCliente> jugadoresARemover = new ArrayList<>();
+            
+            // Obtener los jugadores que deben ser sacados (los que no votaron REINICIAR)
+            for (HiloCliente cliente : clientesConectados) {
+                if (!jugadoresListosParaReiniciar.containsKey(cliente)) {
+                    // Si no ha votado por REINICIAR y no ha salido de la sala (porque sigue en clientesConectados)
+                    jugadoresARemover.add(cliente);
+                    cliente.enviarMensaje("SALIDA_FORZADA: No respondiste a tiempo. Fuiste sacado de la sala.");
+                }
+            }
+
+            // Remover a los jugadores morosos o no listos
+            for (HiloCliente cliente : jugadoresARemover) {
+                removerJugador(cliente);
+            }
+
+            // Evaluar si hay suficientes jugadores restantes para reiniciar
+            if (clientesConectados.size() >= 2) {
+                broadcast("\n=== Reiniciando Partida ===");
+                iniciarJuego(); // Llama a iniciarJuego() que se encarga de iniciarNuevaRonda.
+            } else {
+                broadcast("\n=== Votación Finalizada ===");
+                if (clientesConectados.isEmpty()) {
+                    GestorSalas.removerSala(id);
+                    System.out.println("Sala " + id + " vacía y cerrada.");
+                } else {
+                    broadcast("No hay suficientes jugadores (mínimo 2) para reiniciar. Esperando nuevos jugadores...");
+                }
+            }
+        }
+
+     // --- MÉTODOS DE CARTAS ESPECIALES (Con ajustes para cambio de turno) ---
 
     private void manejarCartaAccion(HiloCliente cliente, Jugador jugador, Carta carta) {
         jugador.recibirCarta(carta); 

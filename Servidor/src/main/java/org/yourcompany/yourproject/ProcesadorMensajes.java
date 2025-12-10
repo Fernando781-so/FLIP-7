@@ -31,6 +31,11 @@ public class ProcesadorMensajes {
             case "UNIRSE_SALA":
                 handleUnirseSala(partes);
                 break;
+         
+            case "REINICIAR":
+            case "VOTAR_SALIR":
+                handleVotoFinJuego(comando);
+                break;    
 
             case "SALIR_SALA":
                 handleSalirSala();
@@ -59,7 +64,7 @@ public class ProcesadorMensajes {
                 case "ROBAR":
             case "PLANTARSE":
                 handleJugada(comando); // <--- Nuevo método que crearemos abajo
-                break;
+                break;    
 
             default:
                 cliente.enviarMensaje("Comando no reconocido.");
@@ -198,6 +203,17 @@ public class ProcesadorMensajes {
             sala.procesarAccionJugador(cliente, accion);
         } else {
             cliente.enviarMensaje("Error: No estás en una partida activa o no es tu turno.");
+        }
+    }
+    private void handleVotoFinJuego(String comando) {
+        Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
+
+        if (sala != null && !sala.isJuegoIniciado()) {
+            // Utilizamos el mismo comando 'REINICIAR' o traducimos 'VOTAR_SALIR' a 'SALIR_SALA'
+            String voto = comando.equals("VOTAR_SALIR") ? "SALIR_SALA" : "REINICIAR";
+            sala.procesarVoto(cliente, voto);
+        } else {
+            cliente.enviarMensaje("Error: No puedes votar ahora.");
         }
     }
 }
