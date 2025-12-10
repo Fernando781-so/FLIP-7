@@ -308,8 +308,8 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         cliente.enviarMensaje("Error: El jugador seleccionado no existe o no está en la sala.");
         return;
     }
-    TipoAccion accionAResolver = accionPendiente; 
     
+    TipoAccion accionAResolver = accionPendiente; 
     accionPendiente = null;
     jugadorPendienteDeAccion = null;
     // 2. Ejecutar la acción

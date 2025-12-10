@@ -75,7 +75,9 @@ public class Cliente {
                     salida.writeUTF("SELECCIONAR_OBJETIVO:" + objetivo);
                     esperandoObjetivo = false;
                     // Pausa ligera para que el servidor procese y responda.
-                    try { Thread.sleep(100); } catch (InterruptedException e) {}
+                    System.out.println("[Sistema]: Objetivo enviado. Esperando respuesta del servidor...");
+                    try { Thread.sleep(500); } catch (InterruptedException e) {
+                    }
                 }
 
                 else if (juegoIniciado) {
