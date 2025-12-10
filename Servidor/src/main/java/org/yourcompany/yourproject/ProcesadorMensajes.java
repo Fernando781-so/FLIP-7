@@ -101,7 +101,7 @@ public class ProcesadorMensajes {
             cliente.enviarMensaje("Error: Usuario/Contraseña incorrectas.");
         }
     }
-
+    
     private void handleCrearSala() {
         if (cliente.getUsuarioActual() == null) {
             cliente.enviarMensaje("Error: Debes iniciar sesión primero.");
@@ -116,7 +116,7 @@ public class ProcesadorMensajes {
 
         int idSala = GestorSalas.crearSala(cliente);
         cliente.enviarMensaje("Sala creada con éxito. ID: " + idSala);
-        cliente.enviarMensaje("Esperando jugadores... (Envía 'INICIAR' para comenzar)");
+        cliente.enviarMensaje("Esperando jugadores... (Envía 'INICIAR_PARTIDA' para comenzar)");
     }
 
     private void handleUnirseSala(String[] partes) {
@@ -170,10 +170,25 @@ public class ProcesadorMensajes {
     }
 
     private void handleIniciarPartida() {
-        Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
-        if (sala != null) {
-            sala.iniciarJuego();
+Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
+    
+    if (sala != null) {
+        if (sala.isJuegoIniciado()) {
+            cliente.enviarMensaje("Error: El juego ya está activo. No puedes iniciarlo de nuevo.");
+            return;
         }
+
+        if (!sala.esAnfitrion(cliente)) { 
+            cliente.enviarMensaje("Error: Solo el anfitrión puede iniciar la partida.");
+            return;
+        }
+        
+        // Si todo está bien, inicia el juego
+        sala.iniciarJuego();
+        
+    } else {
+        cliente.enviarMensaje("Error: No estás en ninguna sala.");
+      }
     }
 
     private void handleSeleccionObjetivo(String[] partes) {

@@ -51,7 +51,7 @@ public class Sala {
         Jugador nuevoJugador = new Jugador(nombre); 
         mapaEstadoJugador.put(cliente, nuevoJugador);
         broadcast("LOBBY_UPDATE:Jugadores en sala: " + obtenerListaNombresJugadores());
-        cliente.enviarMensaje("Esperando al anfitrión... (Envía INICIAR_PARTIDA)");
+        cliente.enviarMensaje("Esperando al anfitrión...");
     }
     
     public synchronized void removerJugador(HiloCliente cliente) {
@@ -63,6 +63,9 @@ public class Sala {
         }
     }
 
+        public boolean esAnfitrion(HiloCliente cliente) {
+            return !clientesConectados.isEmpty() && clientesConectados.get(0).equals(cliente);
+        }
 
     public synchronized void iniciarJuego() {
     if (clientesConectados.size() < 2) { 
@@ -308,7 +311,7 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         cliente.enviarMensaje("Error: El jugador seleccionado no existe o no está en la sala.");
         return;
     }
-    
+
     TipoAccion accionAResolver = accionPendiente; 
     accionPendiente = null;
     jugadorPendienteDeAccion = null;
