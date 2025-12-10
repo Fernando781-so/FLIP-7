@@ -259,87 +259,6 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         
     }
 
-    
-
-        private void gestionarFinDeJuego() {
-            this.jugadoresListosParaReiniciar = new HashMap<>();
-
-            broadcast("FIN_JUEGO_VOTO: La partida ha terminado. ¿Desean jugar de nuevo o salir? (REINICIAR / SALIR_SALA)");
-            broadcast("Tienes 15 segundos para responder. Tiempo límite: " + TIEMPO_ESPERA_FIN_JUEGO / 1000 + "s");
-
-            // Usamos un nuevo hilo para el temporizador para no bloquear el hilo principal del servidor
-            Thread timerThread = new Thread(() -> {
-                try {
-                    Thread.sleep(TIEMPO_ESPERA_FIN_JUEGO);
-                    
-                    // Lógica después de los 15 segundos
-                    synchronized (this) {
-                        terminarVotacion();
-                    }
-                } catch (InterruptedException e) {
-                    // El temporizador se interrumpe si todos responden antes de tiempo
-                }
-            });
-            timerThread.start();
-        }
-            public synchronized void procesarVoto(HiloCliente cliente, String comando) {
-                if (juegoIniciado) return; // Si el juego se inició de nuevo antes de que el voto llegara
-
-                if (jugadoresListosParaReiniciar.containsKey(cliente)) {
-                    cliente.enviarMensaje("Error: Ya has votado.");
-                    return;
-                }
-
-                if (comando.equals("REINICIAR")) {
-                    jugadoresListosParaReiniciar.put(cliente, true);
-                    broadcast("VOTO: " + cliente.getUsuarioActual() + " ha votado para REINICIAR.");
-                } else if (comando.equals("SALIR_SALA")) {
-                    // En lugar de añadir al mapa de votos, lo removemos de la sala inmediatamente
-                    removerJugador(cliente);
-                    cliente.enviarMensaje("SALIDA_EXITOSA: Has salido de la sala.");
-                    // No necesitamos contar votos de salida, ya que la salida es inmediata.
-                    // Si el cliente ya no está, ya no necesita votar por reiniciar.
-                }
-
-                // Verificar si todos los jugadores restantes (los que no salieron) han votado.
-                if (clientesConectados.size() == jugadoresListosParaReiniciar.size()) {
-                    terminarVotacion();
-                }
-            }
-
-                    private synchronized void terminarVotacion() {
-            // Si la votación terminó por tiempo, todos los que no votaron o no salieron, deben salir.
-            List<HiloCliente> jugadoresARemover = new ArrayList<>();
-            
-            // Obtener los jugadores que deben ser sacados (los que no votaron REINICIAR)
-            for (HiloCliente cliente : clientesConectados) {
-                if (!jugadoresListosParaReiniciar.containsKey(cliente)) {
-                    // Si no ha votado por REINICIAR y no ha salido de la sala (porque sigue en clientesConectados)
-                    jugadoresARemover.add(cliente);
-                    cliente.enviarMensaje("SALIDA_FORZADA: No respondiste a tiempo. Fuiste sacado de la sala.");
-                }
-            }
-
-            // Remover a los jugadores morosos o no listos
-            for (HiloCliente cliente : jugadoresARemover) {
-                removerJugador(cliente);
-            }
-
-            // Evaluar si hay suficientes jugadores restantes para reiniciar
-            if (clientesConectados.size() >= 2) {
-                broadcast("\n=== Reiniciando Partida ===");
-                iniciarJuego(); // Llama a iniciarJuego() que se encarga de iniciarNuevaRonda.
-            } else {
-                broadcast("\n=== Votación Finalizada ===");
-                if (clientesConectados.isEmpty()) {
-                    GestorSalas.removerSala(id);
-                    System.out.println("Sala " + id + " vacía y cerrada.");
-                } else {
-                    broadcast("No hay suficientes jugadores (mínimo 2) para reiniciar. Esperando nuevos jugadores...");
-                }
-            }
-        }
-
      // --- MÉTODOS DE CARTAS ESPECIALES (Con ajustes para cambio de turno) ---
 
     private void manejarCartaAccion(HiloCliente cliente, Jugador jugador, Carta carta) {
@@ -456,6 +375,83 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
              jugador.recibirCarta(carta);
              jugador.calcularPuntajeRonda();
         }
+    }
+
+        private void gestionarFinDeJuego() {
+                this.jugadoresListosParaReiniciar = new HashMap<>();
+
+                broadcast("FIN_JUEGO_VOTO: La partida ha terminado. ¿Desean jugar de nuevo o salir? (REINICIAR / VOTAR_SALIR)");
+                broadcast("Tienes 15 segundos para responder. Tiempo límite: " + TIEMPO_ESPERA_FIN_JUEGO / 1000 + "s");
+
+                Thread timerThread = new Thread(() -> {
+                    try {
+                        Thread.sleep(TIEMPO_ESPERA_FIN_JUEGO);
+                        
+                        // Lógica después de los 15 segundos
+                        synchronized (this) {
+                            terminarVotacion();
+                        }
+                    } catch (InterruptedException e) {
+                        // El temporizador se interrumpe si todos responden antes de tiempo
+                    }
+                });
+                timerThread.start();
+            }
+
+            public synchronized void procesarVoto(HiloCliente cliente, String comando) {
+        if (juegoIniciado) return;
+
+        if (jugadoresListosParaReiniciar != null && jugadoresListosParaReiniciar.containsKey(cliente)) {
+            cliente.enviarMensaje("Error: Ya has votado.");
+            return;
+        }
+        
+        if (comando.equals("REINICIAR")) {
+            if(jugadoresListosParaReiniciar == null) jugadoresListosParaReiniciar = new HashMap<>();
+            jugadoresListosParaReiniciar.put(cliente, true);
+            broadcast("VOTO: " + cliente.getUsuarioActual() + " ha votado para REINICIAR.");
+        } else if (comando.equals("SALIR_SALA")) {
+            // Salida instantánea para no contar el voto
+            removerJugador(cliente);
+            cliente.enviarMensaje("SALIDA_EXITOSA: Has salido de la sala.");
+        }
+
+        // Verificar si todos los jugadores restantes han votado.
+        if (jugadoresListosParaReiniciar != null && clientesConectados.size() == jugadoresListosParaReiniciar.size()) {
+            terminarVotacion();
+        }
+    }
+
+    private synchronized void terminarVotacion() {
+        List<HiloCliente> jugadoresARemover = new ArrayList<>();
+        
+        // Determinar jugadores a remover (los que no votaron o votaron salir)
+        for (HiloCliente cliente : clientesConectados) {
+            // Si el cliente no votó por REINICIAR, se remueve.
+            if (jugadoresListosParaReiniciar == null || !jugadoresListosParaReiniciar.containsKey(cliente)) {
+                jugadoresARemover.add(cliente);
+                cliente.enviarMensaje("SALIDA_FORZADA: No respondiste a tiempo o votaste salir. Fuiste sacado de la sala.");
+            }
+        }
+
+        // Remover a los jugadores
+        for (HiloCliente cliente : jugadoresARemover) {
+            removerJugador(cliente);
+        }
+
+        // Evaluar si hay suficientes jugadores restantes para reiniciar
+        if (clientesConectados.size() >= 2) {
+            broadcast("\n=== Reiniciando Partida ===");
+            this.juegoIniciado = true; // Reiniciar estado
+            iniciarNuevaRonda(); 
+        } else {
+            broadcast("\n=== Votación Finalizada ===");
+            // Si la sala está vacía, GestorSalas ya la remueve en removerJugador.
+            if (!clientesConectados.isEmpty()) {
+                 broadcast("No hay suficientes jugadores (mínimo 2) para reiniciar. Esperando nuevos jugadores...");
+            }
+        }
+        this.jugadoresListosParaReiniciar = null; // Limpiar el estado de votación
     }
 
     private String obtenerListaNombresJugadores() { /* Igual que antes */ 
