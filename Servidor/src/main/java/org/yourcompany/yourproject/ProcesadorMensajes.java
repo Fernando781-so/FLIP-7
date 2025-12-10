@@ -61,7 +61,8 @@ public class ProcesadorMensajes {
             case "SELECCIONAR_OBJETIVO": 
                 handleSeleccionObjetivo(partes);
                 break;
-                case "ROBAR":
+
+            case "ROBAR":
             case "PLANTARSE":
                 handleJugada(comando); // <--- Nuevo método que crearemos abajo
                 break;    

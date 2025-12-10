@@ -299,7 +299,10 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         cliente.enviarMensaje("Error: El jugador seleccionado no existe o no está en la sala.");
         return;
     }
+    TipoAccion accionAResolver = accionPendiente; 
     
+    accionPendiente = null;
+    jugadorPendienteDeAccion = null;
     // 2. Ejecutar la acción
     if (accionPendiente == TipoAccion.FREEZE) {
         if (nombreVictima.equals(cliente.getUsuarioActual())) {
@@ -314,9 +317,6 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         jugVictima.setPlantado(true); 
         broadcast("EFECTO: " + nombreVictima + " ha quedado congelado (No puede robar más en esta ronda).");
         
-        // Limpiar estado
-        accionPendiente = null;
-        jugadorPendienteDeAccion = null;
         siguienteTurno(); 
 
     } else if (accionPendiente == TipoAccion.FLIP_THREE) {
@@ -324,10 +324,6 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         broadcast("FLIP_THREE: " + cliente.getUsuarioActual() + " ataca a " + nombreVictima);
         aplicarFlipThree(cliente, nombreVictima);
         
-        // Limpiar estado
-        accionPendiente = null;
-        jugadorPendienteDeAccion = null;
-        // aplicarFlipThree() llama a siguienteTurno() al finalizar.
     }
 }
 
