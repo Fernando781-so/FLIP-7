@@ -163,9 +163,18 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
             if (tieneCarta) {
                 // Lógica de explosión
                 if (tieneSecondChance(jugador)) {
-                     broadcast("JUEGO: " + jugador.getNombre() + " usa SECOND CHANCE y se salva.");
                      eliminarSecondChance(jugador);
+                     for(int r = 0; r < jugador.getMano().size(); r++) {
+                         Carta c = jugador.getMano().get(r);
+                         if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
+                             jugador.getMano().remove(r);
+                             broadcast("Juego: "+jugador.getNombre() +"descarta su carta coincidente (" + c.getValor() +") como coste de Second Chance.");
+                              break;
+                         }
+                     }
                      jugador.recibirCarta(carta);
+                     jugador.calcularPuntajeRonda();
+                     cliente.enviarMensaje("ESTADO: Mano: " + jugador.getMano().toString());
                      if(!verificarCondicionesVictoriaRonda(cliente, jugador)) {
                          siguienteTurno(); // Solo pasamos turno si no ganó la ronda
                      }
