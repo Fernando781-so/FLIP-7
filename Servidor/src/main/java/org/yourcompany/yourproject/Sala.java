@@ -304,9 +304,10 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
     accionPendiente = null;
     jugadorPendienteDeAccion = null;
     // 2. Ejecutar la acción
-    if (accionPendiente == TipoAccion.FREEZE) {
+    if (accionAResolver == TipoAccion.FREEZE) {
         if (nombreVictima.equals(cliente.getUsuarioActual())) {
             cliente.enviarMensaje("Error: No puedes congelarte a ti mismo.");
+            siguienteTurno();
             return; 
         }
         
@@ -316,14 +317,12 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         // La víctima queda plantada/inactiva para esta ronda
         jugVictima.setPlantado(true); 
         broadcast("EFECTO: " + nombreVictima + " ha quedado congelado (No puede robar más en esta ronda).");
-        
         siguienteTurno(); 
 
-    } else if (accionPendiente == TipoAccion.FLIP_THREE) {
+    } else if (accionAResolver == TipoAccion.FLIP_THREE) {
         // En el caso de FLIP_THREE, el método aplicado ya gestiona el pase de turno.
         broadcast("FLIP_THREE: " + cliente.getUsuarioActual() + " ataca a " + nombreVictima);
         aplicarFlipThree(cliente, nombreVictima);
-        
     }
 }
 
