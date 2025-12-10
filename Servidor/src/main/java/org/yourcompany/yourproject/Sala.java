@@ -19,6 +19,9 @@ public class Sala {
     private TipoAccion accionPendiente = null; 
     private HiloCliente jugadorPendienteDeAccion = null;
     
+    private final long TIEMPO_ESPERA_FIN_JUEGO = 15000; // 15 segundos
+    private Map<HiloCliente, Boolean> jugadoresListosParaReiniciar; // Almacena qué jugadores quieren reiniciar
+
     private Mazo mazo;
     private boolean juegoIniciado;
     private int indiceTurnoActual;
@@ -245,6 +248,7 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
             broadcast("********************************************");
             this.juegoIniciado = false;
             // Aquí podrías reiniciar todo o cerrar la sala
+            
         } else {
             // Preparamos siguiente ronda
             numeroRonda++;
@@ -252,6 +256,7 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
             try { Thread.sleep(3000); } catch (InterruptedException e) {}
             iniciarNuevaRonda();
         }
+        
     }
 
     // --- MÉTODOS DE CARTAS ESPECIALES (Con ajustes para cambio de turno) ---
@@ -400,5 +405,6 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
     public boolean isJuegoIniciado() {
     return juegoIniciado;
 }
+
 
 }
