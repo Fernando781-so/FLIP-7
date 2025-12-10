@@ -15,6 +15,9 @@ public class Sala {
     private List<HiloCliente> clientesConectados;
     private Map<String, HiloCliente> mapaNombreCliente; 
     private Map<HiloCliente, Jugador> mapaEstadoJugador; 
+    
+    // NUEVO: Variable para almacenar los puntajes que vienen de la base de datos al cargar
+    private Map<String, Integer> puntajesGuardados = null; 
 
     private TipoAccion accionPendiente = null; 
     private HiloCliente jugadorPendienteDeAccion = null;
@@ -36,10 +39,24 @@ public class Sala {
         agregarJugador(creador);
     }
 
-    // ... (Métodos getId, tieneJugador, agregarJugador y removerJugador IGUALES QUE ANTES) ...
+    // ... (Métodos getId, tieneJugador) ...
     public int getId() { return id; }
     public boolean tieneJugador(HiloCliente cliente) { return clientesConectados.contains(cliente); }
 
+    // NUEVO: Método para recibir los datos desde el procesador al cargar partida
+    public void establecerDatosCargados(Map<String, Integer> datos) {
+        this.puntajesGuardados = datos;
+        // Si el anfitrión ya está dentro al momento de cargar, actualizamos su puntaje inmediatamente
+        for (HiloCliente cliente : clientesConectados) {
+            String nombre = cliente.getUsuarioActual();
+            if (puntajesGuardados.containsKey(nombre)) {
+                Jugador j = mapaEstadoJugador.get(cliente);
+                j.agregarPuntajeTotal(puntajesGuardados.get(nombre));
+            }
+        }
+    }
+
+    // MODIFICADO: Ahora revisa si hay puntajes guardados al agregar un jugador
     public synchronized void agregarJugador(HiloCliente cliente) {
         if (juegoIniciado) {
             cliente.enviarMensaje("Error: El juego ya ha comenzado.");
@@ -48,10 +65,24 @@ public class Sala {
         clientesConectados.add(cliente);
         String nombre = cliente.getUsuarioActual(); 
         mapaNombreCliente.put(nombre, cliente);
+        
         Jugador nuevoJugador = new Jugador(nombre); 
+        
+        // --- INICIO LÓGICA DE CARGA ---
+        // Si hay datos guardados de una partida anterior, recuperamos el puntaje
+        if (puntajesGuardados != null && puntajesGuardados.containsKey(nombre)) {
+            int puntajeAntiguo = puntajesGuardados.get(nombre);
+            nuevoJugador.agregarPuntajeTotal(puntajeAntiguo);
+            cliente.enviarMensaje("SISTEMA: Has recuperado tu puntaje anterior: " + puntajeAntiguo);
+        }
+        // --- FIN LÓGICA DE CARGA ---
+
         mapaEstadoJugador.put(cliente, nuevoJugador);
         broadcast("LOBBY_UPDATE:Jugadores en sala: " + obtenerListaNombresJugadores());
-        cliente.enviarMensaje("Esperando al anfitrión...");
+        
+        if (!esAnfitrion(cliente)) {
+            cliente.enviarMensaje("Esperando al anfitrión...");
+        }
     }
     
     public synchronized void removerJugador(HiloCliente cliente) {
@@ -63,22 +94,43 @@ public class Sala {
         }
     }
 
-        public boolean esAnfitrion(HiloCliente cliente) {
-            return !clientesConectados.isEmpty() && clientesConectados.get(0).equals(cliente);
-        }
+    public boolean esAnfitrion(HiloCliente cliente) {
+        return !clientesConectados.isEmpty() && clientesConectados.get(0).equals(cliente);
+    }
 
     public synchronized void iniciarJuego() {
-    if (clientesConectados.size() < 2) { 
-        broadcast("Error: Se necesitan al menos 2 jugadores.");
-        return;
+        if (clientesConectados.size() < 2) { 
+            broadcast("Error: Se necesitan al menos 2 jugadores.");
+            return;
+        }
+        this.juegoIniciado = true;
+
+        broadcast("JUEGO_INICIADO"); 
+
+        this.numeroRonda = 1;
+        iniciarNuevaRonda();
     }
-    this.juegoIniciado = true;
 
-    broadcast("JUEGO_INICIADO"); 
+    public synchronized void guardarPartida(BaseDeDatos db, HiloCliente solicitante) {
+        if (!esAnfitrion(solicitante)) {
+            solicitante.enviarMensaje("Error: Solo el anfitrión puede guardar la partida.");
+            return;
+        }
 
-    this.numeroRonda = 1;
-    iniciarNuevaRonda();
-}
+        // Obtenemos la lista de objetos Jugador actuales
+        List<Jugador> listaJugadores = new ArrayList<>(mapaEstadoJugador.values());
+        
+        // Llamamos a la base de datos
+        int idGuardado = db.guardarPartida(listaJugadores);
+
+        if (idGuardado != -1) {
+            broadcast("SISTEMA: La partida ha sido guardada correctamente con ID: " + idGuardado);
+            broadcast("SISTEMA: Los puntajes actuales han quedado registrados.");
+        } else {
+            solicitante.enviarMensaje("Error: No se pudo guardar la partida en la base de datos.");
+        }
+    }
+    
     private void iniciarNuevaRonda() {
         this.mazo = new Mazo(); 
         this.mazo.barajar();
@@ -121,37 +173,37 @@ public class Sala {
         notificarTurno();
     }
 
-public synchronized void procesarAccionJugador(HiloCliente cliente, String accion) {
-    if (!clientesConectados.get(indiceTurnoActual).equals(cliente)) {
-        cliente.enviarMensaje("Error: No es tu turno.");
-        return;
-    }
-
-    if (accionPendiente != null && cliente.equals(jugadorPendienteDeAccion)) {
-        cliente.enviarMensaje("Error: Tienes una acción (" + accionPendiente.toString() + ") pendiente de resolver. Debes enviar el comando de SELECCIONAR:Nombre.");
-        return;
-    }
-
-    Jugador jugador = mapaEstadoJugador.get(cliente);
-
-    if (accion.equals("PLANTARSE")) {
-        jugador.setPlantado(true);
-        broadcast("JUEGO: " + jugador.getNombre() + " se planta con " + jugador.getPuntajeRonda() + " puntos.");
-        siguienteTurno(); 
-    } 
-    else if (accion.equals("ROBAR")) {
-        Carta carta = mazo.tomarCarta(); 
-        if (carta == null) {
-            broadcast("JUEGO: Se acabó el mazo.");
-            finalizarRonda(null);
+    public synchronized void procesarAccionJugador(HiloCliente cliente, String accion) {
+        if (!clientesConectados.get(indiceTurnoActual).equals(cliente)) {
+            cliente.enviarMensaje("Error: No es tu turno.");
             return;
         }
-        broadcast("JUEGO: " + jugador.getNombre() + " sacó " + carta.toString());
-        procesarCartaSacada(cliente, jugador, carta); 
-    } else {
-        cliente.enviarMensaje("Error: Acción no válida. Usa ROBAR o PLANTARSE.");
+
+        if (accionPendiente != null && cliente.equals(jugadorPendienteDeAccion)) {
+            cliente.enviarMensaje("Error: Tienes una acción (" + accionPendiente.toString() + ") pendiente de resolver. Debes enviar el comando de SELECCIONAR:Nombre.");
+            return;
+        }
+
+        Jugador jugador = mapaEstadoJugador.get(cliente);
+
+        if (accion.equals("PLANTARSE")) {
+            jugador.setPlantado(true);
+            broadcast("JUEGO: " + jugador.getNombre() + " se planta con " + jugador.getPuntajeRonda() + " puntos.");
+            siguienteTurno(); 
+        } 
+        else if (accion.equals("ROBAR")) {
+            Carta carta = mazo.tomarCarta(); 
+            if (carta == null) {
+                broadcast("JUEGO: Se acabó el mazo.");
+                finalizarRonda(null);
+                return;
+            }
+            broadcast("JUEGO: " + jugador.getNombre() + " sacó " + carta.toString());
+            procesarCartaSacada(cliente, jugador, carta); 
+        } else {
+            cliente.enviarMensaje("Error: Acción no válida. Usa ROBAR o PLANTARSE.");
+        }
     }
-}
 
     private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta carta) {
         // 1. Verificar si explotó (tiene el mismo número)
@@ -299,44 +351,44 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         }
     }
 
- public synchronized void procesarSeleccionObjetivo(HiloCliente cliente, String nombreVictima) {
-    // 1. Verificar si hay una acción pendiente y si el cliente es el correcto
-    if (accionPendiente == null || !cliente.equals(jugadorPendienteDeAccion)) {
-        cliente.enviarMensaje("Error: No se espera una selección de objetivo o no es tu turno para seleccionar.");
-        return;
-    }
-    
-    HiloCliente victima = mapaNombreCliente.get(nombreVictima);
-    if (victima == null) {
-        cliente.enviarMensaje("Error: El jugador seleccionado no existe o no está en la sala.");
-        return;
-    }
-
-    TipoAccion accionAResolver = accionPendiente; 
-    accionPendiente = null;
-    jugadorPendienteDeAccion = null;
-    // 2. Ejecutar la acción
-    if (accionAResolver == TipoAccion.FREEZE) {
-        if (nombreVictima.equals(cliente.getUsuarioActual())) {
-            cliente.enviarMensaje("Error: No puedes congelarte a ti mismo.");
-            siguienteTurno();
-            return; 
+    public synchronized void procesarSeleccionObjetivo(HiloCliente cliente, String nombreVictima) {
+        // 1. Verificar si hay una acción pendiente y si el cliente es el correcto
+        if (accionPendiente == null || !cliente.equals(jugadorPendienteDeAccion)) {
+            cliente.enviarMensaje("Error: No se espera una selección de objetivo o no es tu turno para seleccionar.");
+            return;
         }
         
-        Jugador jugVictima = mapaEstadoJugador.get(victima);
-        broadcast("FREEZE: " + cliente.getUsuarioActual() + " congela a " + nombreVictima);
-        
-        // La víctima queda plantada/inactiva para esta ronda
-        jugVictima.setPlantado(true); 
-        broadcast("EFECTO: " + nombreVictima + " ha quedado congelado (No puede robar más en esta ronda).");
-        siguienteTurno(); 
+        HiloCliente victima = mapaNombreCliente.get(nombreVictima);
+        if (victima == null) {
+            cliente.enviarMensaje("Error: El jugador seleccionado no existe o no está en la sala.");
+            return;
+        }
 
-    } else if (accionAResolver == TipoAccion.FLIP_THREE) {
-        // En el caso de FLIP_THREE, el método aplicado ya gestiona el pase de turno.
-        broadcast("FLIP_THREE: " + cliente.getUsuarioActual() + " ataca a " + nombreVictima);
-        aplicarFlipThree(cliente, nombreVictima);
+        TipoAccion accionAResolver = accionPendiente; 
+        accionPendiente = null;
+        jugadorPendienteDeAccion = null;
+        // 2. Ejecutar la acción
+        if (accionAResolver == TipoAccion.FREEZE) {
+            if (nombreVictima.equals(cliente.getUsuarioActual())) {
+                cliente.enviarMensaje("Error: No puedes congelarte a ti mismo.");
+                siguienteTurno();
+                return; 
+            }
+            
+            Jugador jugVictima = mapaEstadoJugador.get(victima);
+            broadcast("FREEZE: " + cliente.getUsuarioActual() + " congela a " + nombreVictima);
+            
+            // La víctima queda plantada/inactiva para esta ronda
+            jugVictima.setPlantado(true); 
+            broadcast("EFECTO: " + nombreVictima + " ha quedado congelado (No puede robar más en esta ronda).");
+            siguienteTurno(); 
+
+        } else if (accionAResolver == TipoAccion.FLIP_THREE) {
+            // En el caso de FLIP_THREE, el método aplicado ya gestiona el pase de turno.
+            broadcast("FLIP_THREE: " + cliente.getUsuarioActual() + " ataca a " + nombreVictima);
+            aplicarFlipThree(cliente, nombreVictima);
+        }
     }
-}
 
     public synchronized void aplicarFlipThree(HiloCliente atacante, String nombreVictima) {
         HiloCliente clienteVictima = mapaNombreCliente.get(nombreVictima);
@@ -384,28 +436,28 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         }
     }
 
-        private void gestionarFinDeJuego() {
-                this.jugadoresListosParaReiniciar = new HashMap<>();
+    private void gestionarFinDeJuego() {
+        this.jugadoresListosParaReiniciar = new HashMap<>();
 
-                broadcast("FIN_JUEGO_VOTO: La partida ha terminado. ¿Desean jugar de nuevo o salir? (REINICIAR / VOTAR_SALIR)");
-                broadcast("Tienes 15 segundos para responder. Tiempo límite: " + TIEMPO_ESPERA_FIN_JUEGO / 1000 + "s");
+        broadcast("FIN_JUEGO_VOTO: La partida ha terminado. ¿Desean jugar de nuevo o salir? (REINICIAR / VOTAR_SALIR)");
+        broadcast("Tienes 15 segundos para responder. Tiempo límite: " + TIEMPO_ESPERA_FIN_JUEGO / 1000 + "s");
 
-                Thread timerThread = new Thread(() -> {
-                    try {
-                        Thread.sleep(TIEMPO_ESPERA_FIN_JUEGO);
-                        
-                        // Lógica después de los 15 segundos
-                        synchronized (this) {
-                            terminarVotacion();
-                        }
-                    } catch (InterruptedException e) {
-                        // El temporizador se interrumpe si todos responden antes de tiempo
-                    }
-                });
-                timerThread.start();
+        Thread timerThread = new Thread(() -> {
+            try {
+                Thread.sleep(TIEMPO_ESPERA_FIN_JUEGO);
+                
+                // Lógica después de los 15 segundos
+                synchronized (this) {
+                    terminarVotacion();
+                }
+            } catch (InterruptedException e) {
+                // El temporizador se interrumpe si todos responden antes de tiempo
             }
+        });
+        timerThread.start();
+    }
 
-            public synchronized void procesarVoto(HiloCliente cliente, String comando) {
+    public synchronized void procesarVoto(HiloCliente cliente, String comando) {
         if (juegoIniciado) return;
 
         if (jugadoresListosParaReiniciar != null && jugadoresListosParaReiniciar.containsKey(cliente)) {
@@ -487,8 +539,6 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
         }
     }
     public boolean isJuegoIniciado() {
-    return juegoIniciado;
-}
-
-
+        return juegoIniciado;
+    }
 }

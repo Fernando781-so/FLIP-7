@@ -13,7 +13,7 @@ public class Cliente {
     private static boolean esperandoObjetivo = false; 
     private static boolean juegoIniciado = false;
     private static boolean conectado = true;
-    private static boolean enVotacion = false;
+    private static boolean enVotacion = false; // Variable auxiliar si la usas
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
@@ -74,14 +74,12 @@ public class Cliente {
                     String objetivo = scanner.nextLine();
                     salida.writeUTF("SELECCIONAR_OBJETIVO:" + objetivo);
                     esperandoObjetivo = false;
-                    // Pausa ligera para que el servidor procese y responda.
                     System.out.println("[Sistema]: Objetivo enviado. Esperando respuesta del servidor...");
-                    try { Thread.sleep(500); } catch (InterruptedException e) {
-                    }
+                    try { Thread.sleep(500); } catch (InterruptedException e) {}
                 }
 
                 else if (juegoIniciado) {
-                    // *** ESTA ES LA RUTA PRINCIPAL PARA COMANDOS DE JUEGO (ROBAR, PLANTARSE) ***
+                    // *** RUTA PRINCIPAL JUEGO ***
                     System.out.print(">> Comando: ");
                     String input = scanner.nextLine();
                     salida.writeUTF(input);
@@ -90,7 +88,8 @@ public class Cliente {
                 else if (enSala) {
                     System.out.println("\n--- EN SALA DE ESPERA ---");
                     if (esAnfitrion) {
-                        System.out.println("Escribe 'INICIAR_PARTIDA', 'INVITAR:Usuario' o 'SALIR_SALA'.");
+                        // ACTUALIZADO: Se muestra la opción GUARDAR
+                        System.out.println("Escribe 'INICIAR_PARTIDA', 'INVITAR:Usuario', 'GUARDAR' o 'SALIR_SALA'.");
                     } else {
                         System.out.println("Esperando a que el líder inicie. Escribe 'SALIR_SALA'.");
                     }
@@ -98,7 +97,6 @@ public class Cliente {
                     String input = scanner.nextLine();
                     salida.writeUTF(input);
                     
-                    // Limpiar estados locales inmediatamente si es un comando de salida
                     if (input.equalsIgnoreCase("SALIR_SALA")) {
                         enSala = false;
                         esAnfitrion = false;
@@ -110,6 +108,7 @@ public class Cliente {
                     System.out.println("1. Crear sala");
                     System.out.println("2. Unirse a sala (UNIRSE:ID)");
                     System.out.println("3. Salir");
+                    System.out.println("4. Cargar Partida"); // NUEVA OPCIÓN
                     System.out.print("Acción: ");
                     
                     String input = scanner.nextLine();
@@ -124,8 +123,13 @@ public class Cliente {
                     } else if (input.equals("3")) {
                         salida.writeUTF("SALIR");
                         conectado = false;
+                    // --- AQUÍ ESTÁ EL ELSE IF QUE NECESITAS ---
+                    } else if (input.equals("4")) {
+                        System.out.print("Introduce el ID de la partida a cargar: ");
+                        String idPartida = scanner.nextLine();
+                        salida.writeUTF("CARGAR_PARTIDA:" + idPartida);
+                    // ------------------------------------------
                     } else {
-                        // Envía comandos desconocidos (ej: invitar sin estar en sala, etc.)
                         salida.writeUTF(input);
                     }
                 }
@@ -161,10 +165,9 @@ public class Cliente {
         else if (msg.startsWith("SALIDA_EXITOSA")) {
             enSala = false;
             esAnfitrion = false;
-            juegoIniciado = false; // Asegurar que el estado de juego se resetee
+            juegoIniciado = false; 
         }
         else if (msg.startsWith("INVITACION")) {
-
             String[] partes = msg.split(":");
             System.out.println("******************************************");
             System.out.println("* " + partes[1] + " te invita a jugar en Sala " + partes[2]);
@@ -172,7 +175,6 @@ public class Cliente {
             System.out.println("******************************************");
         }
         else if (msg.startsWith("SELECCIONAR")) {
-            // El servidor solicita una selección de objetivo
             esperandoObjetivo = true;
             String[] partes = msg.split(":"); 
             System.out.println(">>> ACCIÓN REQUERIDA: " + partes[2]);

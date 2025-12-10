@@ -1,6 +1,7 @@
 package org.yourcompany.yourproject;
 
 import org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Jugador;
+
 public class ProcesadorMensajes {
 
     private final HiloCliente cliente;
@@ -65,7 +66,16 @@ public class ProcesadorMensajes {
             case "ROBAR":
             case "PLANTARSE":
                 handleJugada(comando); // <--- Nuevo método que crearemos abajo
-                break;    
+                break;
+            
+            case "GUARDAR":
+                handleGuardarPartida();
+                break;
+                
+            // NUEVO: Caso para cargar la partida
+            case "CARGAR_PARTIDA":
+                handleCargarPartida(partes);
+                break;
 
             default:
                 cliente.enviarMensaje("Comando no reconocido.");
@@ -170,25 +180,25 @@ public class ProcesadorMensajes {
     }
 
     private void handleIniciarPartida() {
-Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
-    
-    if (sala != null) {
-        if (sala.isJuegoIniciado()) {
-            cliente.enviarMensaje("Error: El juego ya está activo. No puedes iniciarlo de nuevo.");
-            return;
-        }
+        Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
+            
+        if (sala != null) {
+            if (sala.isJuegoIniciado()) {
+                cliente.enviarMensaje("Error: El juego ya está activo. No puedes iniciarlo de nuevo.");
+                return;
+            }
 
-        if (!sala.esAnfitrion(cliente)) { 
-            cliente.enviarMensaje("Error: Solo el anfitrión puede iniciar la partida.");
-            return;
+            if (!sala.esAnfitrion(cliente)) { 
+                cliente.enviarMensaje("Error: Solo el anfitrión puede iniciar la partida.");
+                return;
+            }
+            
+            // Si todo está bien, inicia el juego
+            sala.iniciarJuego();
+            
+        } else {
+            cliente.enviarMensaje("Error: No estás en ninguna sala.");
         }
-        
-        // Si todo está bien, inicia el juego
-        sala.iniciarJuego();
-        
-    } else {
-        cliente.enviarMensaje("Error: No estás en ninguna sala.");
-      }
     }
 
     private void handleSeleccionObjetivo(String[] partes) {
@@ -210,17 +220,18 @@ Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
             cliente.enviarMensaje("Error: No estás en ninguna sala.");
         }
     }
+    
     private void handleJugada(String accion) {
         // 1. Buscamos en qué sala está jugando este cliente
         Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
         
- 
         if (sala != null && sala.isJuegoIniciado()) {
             sala.procesarAccionJugador(cliente, accion);
         } else {
             cliente.enviarMensaje("Error: No estás en una partida activa o no es tu turno.");
         }
     }
+    
     private void handleVotoFinJuego(String comando) {
         Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
 
@@ -230,6 +241,55 @@ Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
             sala.procesarVoto(cliente, voto);
         } else {
             cliente.enviarMensaje("Error: No puedes votar ahora.");
+        }
+    }
+
+    private void handleGuardarPartida() {
+        Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
+        if (sala != null) {
+            sala.guardarPartida(db, cliente);
+        } else {
+            cliente.enviarMensaje("Error: No estás en una sala para guardar.");
+        }
+    }
+
+    // NUEVO: Lógica para cargar partida
+    private void handleCargarPartida(String[] partes) {
+        if (partes.length < 2) {
+            cliente.enviarMensaje("Error: Debes escribir el ID de la partida.");
+            return;
+        }
+
+        int idPartida;
+        try {
+            idPartida = Integer.parseInt(partes[1]);
+        } catch (NumberFormatException e) {
+            cliente.enviarMensaje("Error: El ID debe ser un número.");
+            return;
+        }
+
+        // 1. Recuperar datos de la BD
+        java.util.Map<String, Integer> datos = db.cargarDatosPartida(idPartida);
+        
+        if (datos.isEmpty()) {
+            cliente.enviarMensaje("Error: No se encontró ninguna partida con ese ID o estaba vacía.");
+            return;
+        }
+
+        // 2. Verificar si el usuario que intenta cargar estaba en esa partida
+        if (!datos.containsKey(cliente.getUsuarioActual())) {
+            cliente.enviarMensaje("Advertencia: Tu usuario no figura en esa partida guardada, pero la sala se creará igual.");
+        }
+
+        // 3. Crear la sala (Reutilizamos la lógica de crear sala)
+        handleCrearSala(); 
+
+        // 4. Buscar la sala recién creada y "pegarle" los datos viejos
+        Sala sala = GestorSalas.buscarSalaDeJugador(cliente);
+        if (sala != null) {
+            sala.establecerDatosCargados(datos);
+            cliente.enviarMensaje("--- PARTIDA RECUPERADA EXITOSAMENTE ---");
+            cliente.enviarMensaje("Invita a tus amigos. Cuando se unan, recuperarán sus puntos automáticamente.");
         }
     }
 }

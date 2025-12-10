@@ -33,11 +33,58 @@ public class BaseDeDatos {
                      "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                      "usuario TEXT NOT NULL UNIQUE, " +
                      "password TEXT NOT NULL)";
+
+        String sqlPartidas = "CREATE TABLE IF NOT EXISTS partidas (" +
+                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                 "fecha DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                 "estado TEXT)";
+
+    String sqlDetalles = "CREATE TABLE IF NOT EXISTS partida_detalles (" +
+                 "id_partida INTEGER, " +
+                 "usuario TEXT, " +
+                 "puntaje_total INTEGER, " +
+                 "FOREIGN KEY(id_partida) REFERENCES partidas(id))";
         try {
             this.conexion.createStatement().execute(sql);
+            this.conexion.createStatement().execute(sqlPartidas);
+            this.conexion.createStatement().execute(sqlDetalles);
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    public int guardarPartida(java.util.List<org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Jugador> listaJugadores) {
+    int idPartida = -1;
+    try {
+        // 1. Crear el registro de la partida
+        String sqlPartida = "INSERT INTO partidas(estado) VALUES('GUARDADA')";
+        PreparedStatement pstmt = this.conexion.prepareStatement(sqlPartida, java.sql.Statement.RETURN_GENERATED_KEYS);
+        pstmt.executeUpdate();
+        
+        ResultSet rs = pstmt.getGeneratedKeys();
+        if (rs.next()) {
+            idPartida = rs.getInt(1);
+        }
+
+        // 2. Guardar a cada jugador y su puntaje
+        if (idPartida != -1) {
+            String sqlDetalle = "INSERT INTO partida_detalles(id_partida, usuario, puntaje_total) VALUES(?,?,?)";
+            PreparedStatement pstmtDetalle = this.conexion.prepareStatement(sqlDetalle);
+
+            for (org.yourcompany.yourproject.Cartas.src.main.java.Mazo.Jugador j : listaJugadores) {
+                pstmtDetalle.setInt(1, idPartida);
+                pstmtDetalle.setString(2, j.getNombre());
+                pstmtDetalle.setInt(3, j.getPuntajeTotal());
+                pstmtDetalle.addBatch(); // Agrupamos las inserciones
+            }
+            pstmtDetalle.executeBatch();
+        }
+
+        } catch (SQLException e) {
+            System.out.println("Error al guardar partida: " + e.getMessage());
+            return -1;
+        }
+        return idPartida;
     }
 
     // Devuelve TRUE si se registró, FALSE si ya existía el usuario
@@ -67,4 +114,26 @@ public class BaseDeDatos {
             return false;
         }
     }
+    // En BaseDeDatos.java
+
+public java.util.Map<String, Integer> cargarDatosPartida(int idPartida) {
+    java.util.Map<String, Integer> puntajes = new java.util.HashMap<>();
+    
+    // Buscamos los detalles de esa partida específica
+    String sql = "SELECT usuario, puntaje_total FROM partida_detalles WHERE id_partida = ?";
+    
+    try {
+        PreparedStatement pstmt = this.conexion.prepareStatement(sql);
+        pstmt.setInt(1, idPartida);
+        ResultSet rs = pstmt.executeQuery();
+        
+        while (rs.next()) {
+            // Guardamos: Nombre -> Puntaje
+            puntajes.put(rs.getString("usuario"), rs.getInt("puntaje_total"));
+        }
+    } catch (SQLException e) {
+        System.out.println("Error al cargar partida: " + e.getMessage());
+    }
+    return puntajes;
+}
 }
