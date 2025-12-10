@@ -13,6 +13,7 @@ public class Cliente {
     private static boolean esperandoObjetivo = false; 
     private static boolean juegoIniciado = false;
     private static boolean conectado = true;
+    private static boolean enVotacion = false;
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
@@ -174,6 +175,12 @@ public class Cliente {
             String[] partes = msg.split(":"); 
             System.out.println(">>> ACCIÓN REQUERIDA: " + partes[2]);
             System.out.println(">>> Candidatos: " + (partes.length > 3 ? partes[3] : ""));
+        }
+        else if (msg.startsWith("SALIDA_EXITOSA") || msg.startsWith("SALIDA_FORZADA")) {
+            enSala = false;
+            esAnfitrion = false;
+            juegoIniciado = false; 
+            enVotacion = false;
         }
       
     }
