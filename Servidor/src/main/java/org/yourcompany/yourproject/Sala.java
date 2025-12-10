@@ -248,7 +248,7 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
             broadcast("********************************************");
             this.juegoIniciado = false;
             // Aquí podrías reiniciar todo o cerrar la sala
-            
+            gestionarFinDeJuego();
         } else {
             // Preparamos siguiente ronda
             numeroRonda++;
@@ -260,6 +260,28 @@ public synchronized void procesarAccionJugador(HiloCliente cliente, String accio
     }
 
     // --- MÉTODOS DE CARTAS ESPECIALES (Con ajustes para cambio de turno) ---
+
+        private void gestionarFinDeJuego() {
+            this.jugadoresListosParaReiniciar = new HashMap<>();
+
+            broadcast("FIN_JUEGO_VOTO: La partida ha terminado. ¿Desean jugar de nuevo o salir? (REINICIAR / SALIR_SALA)");
+            broadcast("Tienes 15 segundos para responder. Tiempo límite: " + TIEMPO_ESPERA_FIN_JUEGO / 1000 + "s");
+
+            // Usamos un nuevo hilo para el temporizador para no bloquear el hilo principal del servidor
+            Thread timerThread = new Thread(() -> {
+                try {
+                    Thread.sleep(TIEMPO_ESPERA_FIN_JUEGO);
+                    
+                    // Lógica después de los 15 segundos
+                    synchronized (this) {
+                        terminarVotacion();
+                    }
+                } catch (InterruptedException e) {
+                    // El temporizador se interrumpe si todos responden antes de tiempo
+                }
+            });
+            timerThread.start();
+        }
 
     private void manejarCartaAccion(HiloCliente cliente, Jugador jugador, Carta carta) {
         jugador.recibirCarta(carta); 
