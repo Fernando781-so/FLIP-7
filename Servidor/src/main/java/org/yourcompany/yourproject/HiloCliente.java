@@ -11,6 +11,7 @@ public class HiloCliente extends Thread {
     private final Socket socket;
     private final BaseDeDatos db;
     
+    private boolean esperandoDecisionCartaEspecial = false;
     private DataInputStream entrada;
     private DataOutputStream salida;
     private ProcesadorMensajes procesador; 
@@ -47,6 +48,14 @@ public class HiloCliente extends Thread {
             cerrarConexion();
         } 
     }
+
+        public boolean isEsperandoDecisionCartaEspecial() {
+        return esperandoDecisionCartaEspecial;
+       }
+
+        public void setEsperandoDecisionCartaEspecial(boolean esperandoDecisionCartaEspecial) {
+            this.esperandoDecisionCartaEspecial = esperandoDecisionCartaEspecial;
+        }
 
     public void enviarMensaje(String msg) {
         try {
