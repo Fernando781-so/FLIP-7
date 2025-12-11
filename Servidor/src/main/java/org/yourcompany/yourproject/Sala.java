@@ -398,6 +398,7 @@ public class Sala {
     public synchronized void aplicarFlipThree(HiloCliente atacante, String nombreVictima) {
         HiloCliente clienteVictima = mapaNombreCliente.get(nombreVictima);
         Jugador jugVictima = mapaEstadoJugador.get(clienteVictima);
+        Jugador jugAtacante = mapaEstadoJugador.get(atacante);
 
         for (int i = 0; i < 3; i++) {
             try { Thread.sleep(1000); } catch (InterruptedException e) {}
@@ -408,6 +409,14 @@ public class Sala {
             procesarCartaForzada(clienteVictima, jugVictima, c);
             
             if (jugVictima.isEliminadoRonda()) break; // Si explotó, para.
+        }
+        siguienteTurno();
+        for(int i=0; i<jugAtacante.getMano().size(); i++){
+            if(jugAtacante.getMano().get(i).getTipo() == TipoAccion.FLIP_THREE){
+                jugAtacante.getMano().remove(i);
+              atacante.enviarMensaje("Estado: Se ha usado y descartado la carta FLIP_THREE.");
+                break;
+            }
         }
         siguienteTurno();
     }
