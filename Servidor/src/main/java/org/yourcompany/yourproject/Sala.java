@@ -205,7 +205,6 @@ public class Sala {
         }
     }
 
-
     private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta carta) {
     // 1. Verificar si explotó (tiene el mismo número)
     if (carta.getTipo() == TipoAccion.NUMERO) {
@@ -219,7 +218,6 @@ public class Sala {
         if (tieneCarta) {
             // Lógica de explosión
             if (tieneSecondChance(jugador)) {
-                broadcast("JUEGO: " + jugador.getNombre() +" usa SECOND_CHANCE y se salva" );
                     eliminarSecondChance(jugador);
                     for(int r = 0; r < jugador.getMano().size(); r++) {
                         Carta c = jugador.getMano().get(r);
@@ -260,25 +258,7 @@ public class Sala {
         }
         return;
     }
-        if (carta.getTipo() != TipoAccion.NUMERO) { // Solo si no fue manejada en el if anterior
-        
-        broadcast("JUEGO: " + jugador.getNombre() + " ha robado una carta especial: " + carta.getTipo().toString());
-        
-        // 2.1. Añadimos la carta a la mano inmediatamente
-        jugador.recibirCarta(carta);
-        cliente.enviarMensaje("ESTADO: Mano: " + jugador.getMano().toString());
 
-        // 2.2. Establecemos el estado de espera en el cliente
-        cliente.setEsperandoDecisionCartaEspecial(true);
-        
-        // 2.3. Enviamos el mensaje de decisión al cliente
-        cliente.enviarMensaje("DECISION_CARTA:" + carta.getTipo().toString() + 
-                              ":Has robado una carta especial. ¿Deseas usarla de inmediato o guardarla?");
-        
-        // El turno se detiene. El flujo continúa en procesarDecisionCarta.
-        return; 
-    }
-    siguienteTurno();
     // Si es carta especial
     manejarCartaAccion(cliente, jugador, carta);
 }
@@ -418,7 +398,6 @@ public class Sala {
     public synchronized void aplicarFlipThree(HiloCliente atacante, String nombreVictima) {
         HiloCliente clienteVictima = mapaNombreCliente.get(nombreVictima);
         Jugador jugVictima = mapaEstadoJugador.get(clienteVictima);
-        Jugador jugAtacante = mapaEstadoJugador.get(atacante);
 
         for (int i = 0; i < 3; i++) {
             try { Thread.sleep(1000); } catch (InterruptedException e) {}
@@ -429,14 +408,6 @@ public class Sala {
             procesarCartaForzada(clienteVictima, jugVictima, c);
             
             if (jugVictima.isEliminadoRonda()) break; // Si explotó, para.
-        }
-        siguienteTurno();
-        for(int i=0; i<jugAtacante.getMano().size(); i++){
-            if(jugAtacante.getMano().get(i).getTipo() == TipoAccion.FLIP_THREE){
-                jugAtacante.getMano().remove(i);
-              atacante.enviarMensaje("Estado: Se ha usado y descartado la carta FLIP_THREE.");
-                break;
-            }
         }
         siguienteTurno();
     }
@@ -603,5 +574,5 @@ public class Sala {
     
     // Enviamos el reporte a TODOS
     broadcast(sb.toString());
-  }
+}
 }
