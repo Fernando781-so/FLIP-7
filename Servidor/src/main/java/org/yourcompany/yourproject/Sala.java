@@ -120,6 +120,8 @@ public class Sala {
             solicitante.enviarMensaje("Error: No se pudo guardar la partida.");
         }
     }
+
+    
     
     private void iniciarNuevaRonda() {
         this.mazo = new Mazo(); 
@@ -193,65 +195,49 @@ public class Sala {
     }
 
     private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta carta) {
-        // Lógica normal de turno (fuera de flip three)
         if (carta.getTipo() == TipoAccion.NUMERO) {
             if (verificarExplosion(cliente, jugador, carta)) {
-                // Si explotó (se maneja dentro del boolean)
             } else {
-                // No explotó
                 if (!verificarCondicionesVictoriaRonda(cliente, jugador)) {
                     siguienteTurno(); 
                 }
             }
             return;
         }
-        // Si no es número, es acción
         manejarCartaAccion(cliente, jugador, carta);
     }
     
-    // Método auxiliar para lógica de explosión (reutilizado en FlipThree)
     private boolean verificarExplosion(HiloCliente cliente, Jugador jugador, Carta carta) {
         boolean tieneCarta = false;
-        for (Carta c : jugador.getMano()) {
-            if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
-                tieneCarta = true; break;
-            }
-        }
 
         if (tieneCarta) {
             if (tieneSecondChance(jugador)) {
                  eliminarSecondChance(jugador);
-                 for(int r = 0; r < jugador.getMano().size(); r++) {
-                     Carta c = jugador.getMano().get(r);
-                     if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
-                         jugador.getMano().remove(r);
-                         broadcast("Juego: "+jugador.getNombre() +" usa Second Chance y descarta par de " + c.getValor());
-                         break;
-                     }
-                 }
+                 
                  jugador.recibirCarta(carta);
                  jugador.calcularPuntajeRonda();
-                 cliente.enviarMensaje("ESTADO: Mano: " + jugador.getMano().toString());
                  
-                 // Solo pasamos turno si NO estamos en FlipThree
+                 broadcast(">> " + jugador.getNombre() + " se salvó usando Second Chance!");
+                 broadcastEstadoMesa(); 
+
                  if(!enModoFlipThree) {
                      if(!verificarCondicionesVictoriaRonda(cliente, jugador)) siguienteTurno();
                  }
-                 return false; // Se salvó
+                 return false; 
             } else {
                  broadcast("EXPLOSION: " + jugador.getNombre() + " explotó con un " + carta.getValor());
-                 jugador.setPuntajeRonda(0);
-                 jugador.getMano().clear();
-                 jugador.setEliminadoRonda(true); 
-                 
-                 // Si explota, paramos todo (incluso en flip three se detiene el ciclo desde afuera)
+                
                  if(!enModoFlipThree) siguienteTurno();
-                 return true; // Explotó
+                 return true; 
             }
         } else {
             jugador.recibirCarta(carta);
             jugador.calcularPuntajeRonda();
-            cliente.enviarMensaje("ESTADO: Mano: " + jugador.getMano().toString());
+            
+
+            broadcastEstadoMesa();
+
+            
             return false;
         }
     }
@@ -428,6 +414,8 @@ public class Sala {
             // Notificamos discretamente
             String nombreCarta = c.getTipo().toString();
             victimaFlipThree.enviarMensaje("SISTEMA: Obtuviste " + nombreCarta + " durante el ataque. Se guarda en tu mano.");
+
+            broadcastEstadoMesa();
             
             // SEGUIMOS ROBANDO INMEDIATAMENTE
             continuarFlipThree();
@@ -530,4 +518,31 @@ public class Sala {
     public boolean isJuegoIniciado() {
         return juegoIniciado;
     }
+
+    private void broadcastEstadoMesa() {
+    StringBuilder sb = new StringBuilder("\n=== ESTADO DE LA MESA ===\n");
+    
+    for (HiloCliente hc : clientesConectados) {
+        Jugador j = mapaEstadoJugador.get(hc);
+        
+        sb.append(String.format("%-10s", j.getNombre())) // Nombre alineado
+          .append(": ").append(j.getMano().toString());  // Sus cartas
+        
+        // Agregamos info extra útil
+        if (j.isPlantado()) {
+            sb.append(" [PLANTADO - ").append(j.getPuntajeRonda()).append(" pts]");
+        } else if (j.isEliminadoRonda()) {
+            sb.append(" [ELIMINADO]");
+        } else {
+            sb.append(" (Jugando...)");
+        }
+        sb.append("\n");
+    }
+    sb.append("=========================");
+    
+    // Enviamos este resumen a TODOS los conectados
+    broadcast(sb.toString());
+}
+
+
 }
