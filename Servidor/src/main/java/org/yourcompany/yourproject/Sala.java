@@ -197,6 +197,7 @@ public class Sala {
     }
 
     private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta carta) {
+<<<<<<< HEAD
         if (carta.getTipo() == TipoAccion.NUMERO) {
             boolean tieneCarta = false;
             for (Carta c : jugador.getMano()) {
@@ -242,7 +243,64 @@ public class Sala {
         }
 
         manejarCartaAccion(cliente, jugador, carta);
+=======
+    // 1. Verificar si explotó (tiene el mismo número)
+    if (carta.getTipo() == TipoAccion.NUMERO) {
+        boolean tieneCarta = false;
+        for (Carta c : jugador.getMano()) {
+            if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
+                tieneCarta = true; break;
+            }
+        }
+
+        if (tieneCarta) {
+            // Lógica de explosión
+            if (tieneSecondChance(jugador)) {
+                    eliminarSecondChance(jugador);
+                    for(int r = 0; r < jugador.getMano().size(); r++) {
+                        Carta c = jugador.getMano().get(r);
+                        if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
+                            jugador.getMano().remove(r);
+                            broadcast("Juego: "+jugador.getNombre() +" descarta su carta coincidente (" + c.getValor() +") como coste de Second Chance.");
+                            break;
+                        }
+                    }
+                    jugador.recibirCarta(carta);
+                    jugador.calcularPuntajeRonda();
+                    
+                    // ANTES: cliente.enviarMensaje("ESTADO: Mano: " + jugador.getMano().toString());
+                    broadcastEstadoMesa(); // <--- CAMBIO 1: Mostramos la mesa a todos
+                    
+                    if(!verificarCondicionesVictoriaRonda(cliente, jugador)) {
+                        siguienteTurno(); 
+                    }
+            } else {
+                    broadcast("EXPLOSION: " + jugador.getNombre() + " explotó con un " + carta.getValor());
+                    jugador.setPuntajeRonda(0);
+                    jugador.getMano().clear();
+                    jugador.setEliminadoRonda(true); 
+                    siguienteTurno();
+            }
+        } else {
+            // No explotó, agregamos carta
+            jugador.recibirCarta(carta);
+            jugador.calcularPuntajeRonda();
+            
+            // ANTES: cliente.enviarMensaje("ESTADO: Mano: " + jugador.getMano().toString());
+            broadcastEstadoMesa(); // <--- CAMBIO 2: Mostramos la mesa a todos
+            
+            // Verificar si ganó la ronda por 7 cartas
+            if (!verificarCondicionesVictoriaRonda(cliente, jugador)) {
+                siguienteTurno(); 
+            }
+        }
+        return;
+>>>>>>> 28451d0962be8c9f4e558d56f2a0cd47e7c20416
     }
+
+    // Si es carta especial
+    manejarCartaAccion(cliente, jugador, carta);
+}
     
     private boolean verificarCondicionesVictoriaRonda(HiloCliente cliente, Jugador jugador) {
         if (jugador.getCantidadNumericas() >= 7) {
@@ -387,31 +445,44 @@ public class Sala {
     }
     
     private void procesarCartaForzada(HiloCliente cliente, Jugador jugador, Carta carta) {
+<<<<<<< HEAD
         boolean tieneCarta = false;
         if(carta.getTipo() == TipoAccion.NUMERO) {
              for (Carta c : jugador.getMano()) {
                 if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
                     tieneCarta = true; break;
                 }
+=======
+    boolean tieneCarta = false;
+    // ... (lógica de verificación de carta repetida igual que tenías) ...
+    if(carta.getTipo() == TipoAccion.NUMERO) {
+            for (Carta c : jugador.getMano()) {
+            if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
+                tieneCarta = true; break;
+>>>>>>> 28451d0962be8c9f4e558d56f2a0cd47e7c20416
             }
         }
-
-        if (tieneCarta) {
-             if (tieneSecondChance(jugador)) {
-                 broadcast("JUEGO: " + jugador.getNombre() + " se salva con SECOND CHANCE.");
-                 eliminarSecondChance(jugador);
-                 jugador.recibirCarta(carta);
-             } else {
-                 broadcast("EXPLOSION: " + jugador.getNombre() + " explotó en el ataque.");
-                 jugador.setPuntajeRonda(0);
-                 jugador.getMano().clear();
-                 jugador.setEliminadoRonda(true);
-             }
-        } else {
-             jugador.recibirCarta(carta);
-             jugador.calcularPuntajeRonda();
-        }
     }
+
+    if (tieneCarta) {
+            if (tieneSecondChance(jugador)) {
+                broadcast("JUEGO: " + jugador.getNombre() + " se salva con SECOND CHANCE.");
+                eliminarSecondChance(jugador);
+                jugador.recibirCarta(carta);
+                broadcastEstadoMesa(); // <--- AGREGAR AQUÍ (Actualizar vista tras salvarse)
+            } else {
+                broadcast("EXPLOSION: " + jugador.getNombre() + " explotó en el ataque.");
+                jugador.setPuntajeRonda(0);
+                jugador.getMano().clear();
+                jugador.setEliminadoRonda(true);
+                // Aquí no hace falta mostrar mesa porque se limpió la mano, pero podrías si quieres.
+            }
+    } else {
+            jugador.recibirCarta(carta);
+            jugador.calcularPuntajeRonda();
+            broadcastEstadoMesa(); // <--- AGREGAR AQUÍ (Ver carta nueva forzada)
+    }
+}
 
     private void gestionarFinDeJuego() {
         this.jugadoresListosParaReiniciar = new HashMap<>();
@@ -520,4 +591,30 @@ public class Sala {
     public boolean isJuegoIniciado() {
         return juegoIniciado;
     }
+
+    private void broadcastEstadoMesa() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("\n--- ESTADO DE LA MESA ---\n");
+    
+    for (HiloCliente c : clientesConectados) {
+        Jugador j = mapaEstadoJugador.get(c);
+        
+        // Mostramos el nombre, sus cartas y su puntaje actual
+        sb.append(j.getNombre()).append(" [")
+          .append(j.getPuntajeRonda()).append(" pts]: ");
+          
+        if (j.isEliminadoRonda()) {
+            sb.append("ELIMINADO");
+        } else if (j.isPlantado()) {
+            sb.append(j.getMano().toString()).append(" (Plantado)");
+        } else {
+            sb.append(j.getMano().toString());
+        }
+        sb.append("\n");
+    }
+    sb.append("-------------------------\n");
+    
+    // Enviamos el reporte a TODOS
+    broadcast(sb.toString());
+}
 }
