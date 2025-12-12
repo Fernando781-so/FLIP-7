@@ -194,53 +194,76 @@ public class Sala {
         }
     }
 
-    private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta carta) {
-        if (carta.getTipo() == TipoAccion.NUMERO) {
-            if (verificarExplosion(cliente, jugador, carta)) {
-            } else {
-                if (!verificarCondicionesVictoriaRonda(cliente, jugador)) {
-                    siguienteTurno(); 
-                }
+private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta carta) {
+    // CASO 1: Es un número
+    if (carta.getTipo() == TipoAccion.NUMERO) {
+        // Delegamos toda la lógica al método que acabamos de arreglar
+        boolean exploto = verificarExplosion(cliente, jugador, carta);
+        
+        // Si NO explotó y NO estamos en modo Flip Three (que aquí nunca deberíamos estar, pero por seguridad)
+        if (!exploto) {
+            if (!verificarCondicionesVictoriaRonda(cliente, jugador)) {
+                siguienteTurno();
             }
-            return;
         }
-        manejarCartaAccion(cliente, jugador, carta);
+        return;
     }
+
+    // CASO 2: Es una carta especial
+    manejarCartaAccion(cliente, jugador, carta);
+}
     
-    private boolean verificarExplosion(HiloCliente cliente, Jugador jugador, Carta carta) {
-        boolean tieneCarta = false;
+  private boolean verificarExplosion(HiloCliente cliente, Jugador jugador, Carta carta) {
+    boolean tieneCarta = false;
 
-        if (tieneCarta) {
-            if (tieneSecondChance(jugador)) {
-                 eliminarSecondChance(jugador);
-                 
-                 jugador.recibirCarta(carta);
-                 jugador.calcularPuntajeRonda();
-                 
-                 broadcast(">> " + jugador.getNombre() + " se salvó usando Second Chance!");
-                 broadcastEstadoMesa(); 
-
-                 if(!enModoFlipThree) {
-                     if(!verificarCondicionesVictoriaRonda(cliente, jugador)) siguienteTurno();
-                 }
-                 return false; 
-            } else {
-                 broadcast("EXPLOSION: " + jugador.getNombre() + " explotó con un " + carta.getValor());
-                
-                 if(!enModoFlipThree) siguienteTurno();
-                 return true; 
-            }
-        } else {
-            jugador.recibirCarta(carta);
-            jugador.calcularPuntajeRonda();
-            
-
-            broadcastEstadoMesa();
-
-            
-            return false;
+    // 1. Buscamos si ya tiene el número (ESTO FALTABA)
+    for (Carta c : jugador.getMano()) {
+        if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
+            tieneCarta = true; 
+            break;
         }
     }
+
+    if (tieneCarta) {
+        if (tieneSecondChance(jugador)) {
+             eliminarSecondChance(jugador);
+             // Eliminar la carta que causaba conflicto de la mano (regla general)
+             for(int r = 0; r < jugador.getMano().size(); r++) {
+                 Carta c = jugador.getMano().get(r);
+                 if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
+                     jugador.getMano().remove(r);
+                     break;
+                 }
+             }
+             
+             jugador.recibirCarta(carta);
+             jugador.calcularPuntajeRonda();
+             
+             broadcast(">> " + jugador.getNombre() + " se salvó usando Second Chance!");
+             broadcastEstadoMesa(); 
+
+             // Si NO estamos en Flip Three, verificamos si ganó o pasamos turno
+             if(!enModoFlipThree) {
+                 if(!verificarCondicionesVictoriaRonda(cliente, jugador)) siguienteTurno();
+             }
+             return false; // No explotó (se salvó)
+        } else {
+             broadcast("EXPLOSION: " + jugador.getNombre() + " explotó con un " + carta.getValor());
+             jugador.setPuntajeRonda(0);
+             jugador.getMano().clear();
+             jugador.setEliminadoRonda(true); 
+            
+             if(!enModoFlipThree) siguienteTurno();
+             return true; // Sí explotó
+        }
+    } else {
+        // No tiene la carta, todo bien
+        jugador.recibirCarta(carta);
+        jugador.calcularPuntajeRonda();
+        broadcastEstadoMesa();
+        return false; // No explotó
+    }
+}
 
     private boolean verificarCondicionesVictoriaRonda(HiloCliente cliente, Jugador jugador) {
         if (jugador.getCantidadNumericas() >= 7) {
@@ -358,6 +381,7 @@ public class Sala {
             aplicarFlipThree(cliente, nombreVictima);
         }
     }
+    
 
     // --- LÓGICA CORREGIDA: FLIP THREE SIN PAUSA POR ACCIONES ---
 
