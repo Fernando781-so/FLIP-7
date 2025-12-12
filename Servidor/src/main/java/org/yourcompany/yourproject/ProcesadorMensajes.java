@@ -101,9 +101,14 @@ public class ProcesadorMensajes {
             cliente.enviarMensaje("Error: Faltan datos para login.");
             return;
         }
+        String usuario = partes[1];
+        String password = partes[2];
 
-        if (db.validarUsuario(partes[1], partes[2])) {
-            String usuario = partes[1];
+        if (db.validarUsuario(usuario, password)) {
+            if (org.yourcompany.yourproject.Servidor.clientesOnline.containsKey(usuario)) {
+                cliente.enviarMensaje("Error: La cuenta '" + usuario + "' ya está conectada desde otro lugar.");
+                return; 
+            }
             cliente.setUsuarioActual(usuario); 
             Jugador nuevoJugador = new Jugador(usuario); 
             cliente.enviarMensaje("Sesion iniciada. bienvenido: " + nuevoJugador.getNombre());
