@@ -14,8 +14,8 @@ public class MotorJuego {
     private final NotificacionJuego notificador;
     
     // --- Estado del Juego ---
-    private List<Jugador> jugadores; // Orden de turnos
-    private Map<String, Jugador> mapaJugadores; // Búsqueda rápida por nombre
+    private List<Jugador> jugadores; 
+    private Map<String, Jugador> mapaJugadores; 
     
     private Mazo mazo;
     private boolean juegoIniciado;
@@ -29,7 +29,7 @@ public class MotorJuego {
     // --- Variables Flip Three ---
     private boolean enModoFlipThree = false;
     private int cartasRestantesFlipThree = 0;
-    private String nombreVictimaFlipThree = null; // Usamos String, no HiloCliente
+    private String nombreVictimaFlipThree = null; 
 
     public MotorJuego(NotificacionJuego notificador) {
         this.notificador = notificador;
@@ -41,6 +41,7 @@ public class MotorJuego {
 
     public boolean isJuegoIniciado() { return juegoIniciado; }
     public List<Jugador> getJugadores() { return jugadores; }
+    public boolean isEnModoFlipThree() { return enModoFlipThree; } // Necesario para las cartas
 
     // --- Gestión de Jugadores ---
     public synchronized void agregarJugador(String nombre) {
@@ -53,7 +54,6 @@ public class MotorJuego {
     public synchronized void removerJugador(String nombre) {
         Jugador j = mapaJugadores.remove(nombre);
         jugadores.remove(j);
-        // Si el juego estaba corriendo, esto es complejo, pero por ahora lo dejamos simple
     }
 
     public void cargarPuntajesPrevios(Map<String, Integer> puntajes) {
@@ -92,7 +92,7 @@ public class MotorJuego {
     }
 
     // --- Lógica de Turnos ---
-    private void notificarTurno() {
+    public void notificarTurno() { 
         if (verificarFinDeRondaAutomatico()) {
             finalizarRonda(null);
             return;
@@ -102,7 +102,6 @@ public class MotorJuego {
         
         if (actual.isPlantado() || actual.isEliminadoRonda()) {
             avanzarIndiceTurno();
-            // Llamada recursiva segura (o usar while)
             notificarTurno(); 
             return;
         }
@@ -115,11 +114,15 @@ public class MotorJuego {
         indiceTurnoActual = (indiceTurnoActual + 1) % jugadores.size();
     }
 
-    // --- PROCESAMIENTO PRINCIPAL (Lo que llama la Sala) ---
+    public void avanzarTurno() { 
+        avanzarIndiceTurno();
+        notificarTurno();
+    }
+
+    // --- PROCESAMIENTO PRINCIPAL ---
     public synchronized void procesarAccion(String nombreJugador, String accion) {
         Jugador actual = jugadores.get(indiceTurnoActual);
         
-        // 1. Validaciones
         if (!actual.getNombre().equals(nombreJugador)) {
             notificador.enviarMensajePrivado(nombreJugador, "Error: No es tu turno.");
             return;
@@ -129,12 +132,10 @@ public class MotorJuego {
             return;
         }
 
-        // 2. Ejecución
         if (accion.equals("PLANTARSE")) {
             actual.setPlantado(true);
             notificador.broadcast("JUEGO: " + actual.getNombre() + " se planta con " + actual.getPuntajeRonda() + " pts.");
-            avanzarIndiceTurno();
-            notificarTurno();
+            avanzarTurno();
         } else if (accion.equals("ROBAR")) {
             ejecutarRobar(actual);
         } else {
@@ -150,93 +151,99 @@ public class MotorJuego {
             return;
         }
         notificador.broadcast("JUEGO: " + jugador.getNombre() + " sacó " + carta.toString());
-        
-        // Lógica movida de procesarCartaSacada
-        if (carta.getTipo() == TipoAccion.NUMERO) {
-            boolean exploto = verificarExplosion(jugador, carta);
-            if (!exploto) {
-                if (!verificarCondicionesVictoriaRonda(jugador)) {
-                    avanzarIndiceTurno();
-                    notificarTurno();
+        jugador.recibirCarta(carta); 
+
+        carta.activar(this, jugador);
+    }
+
+    // --- API PARA LAS CARTAS (MÉTODOS PÚBLICOS QUE LAS CARTAS LLAMAN) ---
+
+    /**
+     * Llamado por CartaNumerica
+     */
+    public void procesarNumero(Jugador jugador, Carta carta) {
+        boolean exploto = verificarExplosion(jugador, carta);
+        if (!exploto) {
+            jugador.calcularPuntajeRonda();
+            // Verificar si ganó por tener 7 cartas numéricas
+            if (!verificarCondicionesVictoriaRonda(jugador)) {
+                // Si no estamos en medio de un ataque Flip3, pasamos turno
+                if (!enModoFlipThree) {
+                    avanzarTurno();
                 }
             }
-        } else {
-            manejarCartaAccion(jugador, carta);
+        }
+    }
+
+    /**
+     * Llamado por CartaFreeze y CartaFlipThree
+     */
+    public void solicitarSeleccion(Jugador jugador, TipoAccion tipo, String mensaje) {
+        this.accionPendiente = tipo;
+        this.nombreJugadorPendiente = jugador.getNombre();
+        notificador.enviarMensajePrivado(jugador.getNombre(), "SELECCIONAR:" + tipo + ":" + mensaje);
+    }
+
+    /**
+     * Llamado por CartaBono (Puntos, Multiplicador, Second Chance)
+     */
+    public void notificarBono(Jugador jugador, String mensaje) {
+        notificador.broadcast("BONUS: " + mensaje);
+        if (!enModoFlipThree) {
+            avanzarTurno();
         }
     }
 
     // --- Lógica Específica de Reglas ---
 
     private boolean verificarExplosion(Jugador jugador, Carta carta) {
-        boolean tieneCarta = false;
-        // Buscar duplicados
+        // Solo verificamos explosión si la carta nueva es un número
+        if (carta.getTipo() != TipoAccion.NUMERO) return false;
+
+        boolean duplicado = false;
+        // Buscar duplicados en la mano (excluyendo la carta recién agregada si ya la añadiste antes)
+        int contador = 0;
         for (Carta c : jugador.getMano()) {
             if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
-                tieneCarta = true; break;
+                contador++;
             }
         }
+        if (contador > 1) duplicado = true; // Si hay más de 1 (la vieja y la nueva)
 
-        if (tieneCarta) {
+        if (duplicado) {
             if (tieneSecondChance(jugador)) {
                 eliminarSecondChance(jugador);
-                // Eliminar la carta conflictiva de la mano
-                for(int r = 0; r < jugador.getMano().size(); r++) {
-                     Carta c = jugador.getMano().get(r);
-                     if (c.getTipo() == TipoAccion.NUMERO && c.getValor() == carta.getValor()) {
-                         jugador.getMano().remove(r);
-                         break;
-                     }
-                }
-                jugador.recibirCarta(carta);
+                // Eliminar la carta vieja conflictiva
+                eliminarUnaCartaPorValor(jugador, carta.getValor());
+                
                 jugador.calcularPuntajeRonda();
                 notificador.broadcast(">> " + jugador.getNombre() + " se salvó usando Second Chance!");
                 broadcastEstadoMesa();
-                return false; // No explotó
+                return false; 
             } else {
-                notificador.broadcast("EXPLOSION: " + jugador.getNombre() + " explotó con un " + carta.getValor());
+                notificador.broadcast("EXPLOSION: " + jugador.getNombre() + " explotó con el par de " + carta.getValor());
                 jugador.setPuntajeRonda(0);
                 jugador.getMano().clear();
                 jugador.setEliminadoRonda(true);
-                return true; // Explotó
+                
+                if (enModoFlipThree) {
+                    // Si explotó durante Flip Three, termina el ataque
+                    enModoFlipThree = false;
+                    avanzarTurno();
+                } else {
+                    avanzarTurno();
+                }
+                return true; 
             }
         } else {
-            jugador.recibirCarta(carta);
             jugador.calcularPuntajeRonda();
             broadcastEstadoMesa();
             return false;
         }
     }
 
-    private void manejarCartaAccion(Jugador jugador, Carta carta) {
-        jugador.recibirCarta(carta);
-        jugador.calcularPuntajeRonda();
-
-        switch (carta.getTipo()) {
-            case FREEZE:
-                this.accionPendiente = TipoAccion.FREEZE;
-                this.nombreJugadorPendiente = jugador.getNombre();
-                notificador.enviarMensajePrivado(jugador.getNombre(), "SELECCIONAR:FREEZE:¿A quién congelas? (Escribe el nombre)");
-                break;
-                
-            case FLIP_THREE:
-                this.accionPendiente = TipoAccion.FLIP_THREE;
-                this.nombreJugadorPendiente = jugador.getNombre();
-                notificador.enviarMensajePrivado(jugador.getNombre(), "SELECCIONAR:FLIP_THREE:¿A quién atacas? (Escribe el nombre)");
-                break;
-                
-            case SECOND_CHANCE:
-                notificador.broadcast("ACCION: " + jugador.getNombre() + " obtuvo Second Chance.");
-                if (!enModoFlipThree) { avanzarIndiceTurno(); notificarTurno(); }
-                break;
-
-            case PUNTOS: // Asumiendo que existen en tu Enum
-            case MULTIPLICADOR: 
-                notificador.broadcast("BONUS: " + jugador.getNombre() + " obtuvo carta especial.");
-                if (!enModoFlipThree) { avanzarIndiceTurno(); notificarTurno(); }
-                break;
-        }
-    }
-
+    // --- Respuesta del Usuario (Target Selection) ---
+    
     public synchronized void procesarSeleccionObjetivo(String nombreAtacante, String nombreVictima) {
         if (accionPendiente == null || !nombreAtacante.equals(nombreJugadorPendiente)) {
             notificador.enviarMensajePrivado(nombreAtacante, "Error: No se espera selección.");
@@ -259,9 +266,8 @@ public class MotorJuego {
         // Ejecutar efecto
         if (accion == TipoAccion.FREEZE) {
             if (nombreAtacante.equals(nombreVictima)) {
-                notificador.enviarMensajePrivado(nombreAtacante, "No puedes congelarte a ti mismo.");
-                if(!enModoFlipThree) { avanzarIndiceTurno(); notificarTurno(); }
-                else continuarFlipThree();
+                notificador.enviarMensajePrivado(nombreAtacante, "No puedes congelarte a ti mismo (pierdes el turno).");
+                avanzarTurno();
                 return;
             }
             eliminarCartaDeMano(atacante, TipoAccion.FREEZE);
@@ -269,7 +275,7 @@ public class MotorJuego {
             notificador.broadcast("FREEZE: " + nombreAtacante + " congeló a " + nombreVictima);
             
             if(enModoFlipThree) continuarFlipThree();
-            else { avanzarIndiceTurno(); notificarTurno(); }
+            else avanzarTurno();
 
         } else if (accion == TipoAccion.FLIP_THREE) {
             eliminarCartaDeMano(atacante, TipoAccion.FLIP_THREE);
@@ -292,14 +298,13 @@ public class MotorJuego {
         if (cartasRestantesFlipThree <= 0 || victima.isEliminadoRonda()) {
             enModoFlipThree = false;
             nombreVictimaFlipThree = null;
-            avanzarIndiceTurno();
-            notificarTurno();
+            avanzarTurno();
             return;
         }
 
         cartasRestantesFlipThree--;
         
-        // Simulación de pausa (Idealmente no usar sleep en el hilo principal, pero mantenemos tu lógica)
+        // Simulación de pausa
         try { Thread.sleep(1000); } catch (InterruptedException e) {}
 
         Carta c = mazo.tomarCarta();
@@ -310,19 +315,26 @@ public class MotorJuego {
         }
         
         notificador.broadcast("FLIP_THREE: " + victima.getNombre() + " voltea... " + c.toString());
+        
+        // En Flip Three, la lógica es especial:
+        // Si es número -> Se verifica explosión.
+        // Si es acción -> Se guarda en la mano pero NO se activa su efecto inmediatamente.
+        
+        jugadorRecibeEnFlipThree(victima, c);
+    }
 
+    private void jugadorRecibeEnFlipThree(Jugador victima, Carta c) {
+        victima.recibirCarta(c);
+        
         if (c.getTipo() == TipoAccion.NUMERO) {
+            // Si es número, reutilizamos la lógica de explosión
             boolean exploto = verificarExplosion(victima, c);
-            if (exploto) {
-                enModoFlipThree = false;
-                avanzarIndiceTurno();
-                notificarTurno();
-            } else {
+            if (!exploto) {
                 continuarFlipThree();
             }
+            // Si explotó, verificarExplosion ya manejó el cambio de turno
         } else {
-            // Carta especial en Flip Three: Se guarda, no se ejecuta
-            victima.recibirCarta(c);
+            // Si es especial (Bono, Freeze, etc), en Flip 3 NO se activa, solo se guarda.
             notificador.enviarMensajePrivado(victima.getNombre(), "Obtuviste " + c.getTipo() + " (guardada).");
             broadcastEstadoMesa();
             continuarFlipThree();
@@ -375,6 +387,9 @@ public class MotorJuego {
             iniciarNuevaRonda();
         }
     }
+    public void notificarTodos(String mensaje) {
+        notificador.broadcast(mensaje);
+    }
     
     // Auxiliares
     private boolean tieneSecondChance(Jugador j) {
@@ -387,6 +402,16 @@ public class MotorJuego {
     private void eliminarCartaDeMano(Jugador j, TipoAccion tipo) {
         for(int i=0; i<j.getMano().size(); i++){
             if(j.getMano().get(i).getTipo() == tipo){ j.getMano().remove(i); return; }
+        }
+    }
+    private void eliminarUnaCartaPorValor(Jugador j, int valor) {
+        for(int i=0; i<j.getMano().size(); i++){
+            // Buscamos una carta que sea NUMERO y tenga ese valor
+            Carta c = j.getMano().get(i);
+            if(c.getTipo() == TipoAccion.NUMERO && c.getValor() == valor){ 
+                j.getMano().remove(i); 
+                return; 
+            }
         }
     }
     private void broadcastEstadoMesa() {
