@@ -42,13 +42,23 @@ public class Jugador {
     public void setEliminadoRonda(boolean eliminado) { this.eliminadoRonda = eliminado; }
 
     public void calcularPuntajeRonda() {
-        int suma = 0;
-        for (Carta c : this.mano) {
-            suma += c.getValor();
-        }
-        this.puntajeRonda = suma;
-    }
+        int sumaNumeros = 0;
+        int sumaBonos = 0;
+        int multiplicador = 1;
 
+        for (Carta c : this.mano) {
+            if (c.getTipo() == TipoAccion.NUMERO) {
+                sumaNumeros += c.getValor();
+            } 
+            else if (c.getTipo() == TipoAccion.PUNTOS) {
+                sumaBonos += c.getValor(); 
+            }
+            else if (c.getTipo() == TipoAccion.MULTIPLICADOR) {
+                multiplicador *= c.getValor(); 
+            }
+        }
+        this.puntajeRonda = (sumaNumeros * multiplicador) + sumaBonos;
+    }
 
     public int getCantidadNumericas() {
         int conteo = 0;

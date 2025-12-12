@@ -4,5 +4,7 @@ public enum TipoAccion {
     NUMERO,         
     FREEZE,         
     FLIP_THREE,     
-    SECOND_CHANCE   
+    SECOND_CHANCE,
+    PUNTOS,      
+    MULTIPLICADOR
 }

@@ -3,6 +3,7 @@ package org.yourcompany.yourproject.Cartas.src.main.java.Mazo;
 public class Carta {
     private final int valor;
     private final TipoAccion tipo;
+
     public int getValor() { return valor; }
     public TipoAccion getTipo() { return tipo; }
 
@@ -13,19 +14,21 @@ public class Carta {
         this.valor = valor;
         this.tipo = TipoAccion.NUMERO;
     }
-
-    
-    public Carta(TipoAccion tipo) {
-        this.valor = 0; 
+    public Carta(TipoAccion tipo, int valorEspecial) {
         this.tipo = tipo;
+        this.valor = valorEspecial; 
+    }
+    
+   
+    public Carta(TipoAccion tipo) {
+        this(tipo, 0);
     }
 
     @Override
-public String toString() {
-    if (this.tipo == TipoAccion.NUMERO) {
-        return "[" + this.valor + "]";
-    } else {
-        return "[" + this.tipo.toString() + "]"; // Saldrá [FREEZE], [FLIP_THREE], etc.
+    public String toString() {
+        if (this.tipo == TipoAccion.NUMERO) return "[" + this.valor + "]";
+        if (this.tipo == TipoAccion.PUNTOS) return "[+" + this.valor + "]";
+        if (this.tipo == TipoAccion.MULTIPLICADOR) return "[x" + this.valor + "]";
+        return "[" + this.tipo.toString() + "]";
     }
-}
 }

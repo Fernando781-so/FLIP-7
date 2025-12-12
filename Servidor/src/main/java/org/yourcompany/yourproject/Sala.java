@@ -223,6 +223,7 @@ private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta car
             break;
         }
     }
+    
 
     if (tieneCarta) {
         if (tieneSecondChance(jugador)) {
@@ -264,6 +265,7 @@ private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta car
         return false; // No explotó
     }
 }
+
 
     private boolean verificarCondicionesVictoriaRonda(HiloCliente cliente, Jugador jugador) {
         if (jugador.getCantidadNumericas() >= 7) {
@@ -317,24 +319,29 @@ private void procesarCartaSacada(HiloCliente cliente, Jugador jugador, Carta car
 
     private void manejarCartaAccion(HiloCliente cliente, Jugador jugador, Carta carta) {
         jugador.recibirCarta(carta); 
+        
+        // Calculamos puntaje inmediatamente para actualizar la vista
+        jugador.calcularPuntajeRonda(); 
 
         switch (carta.getTipo()) {
             case FREEZE:
-                this.accionPendiente = TipoAccion.FREEZE;
-                this.jugadorPendienteDeAccion = cliente;
-                String candidatosFreeze = obtenerListaCandidatos(cliente.getUsuarioActual(), false);
-                cliente.enviarMensaje("SELECCIONAR:FREEZE:¿A quién quieres congelar?:" + candidatosFreeze);
                 break;
                 
             case FLIP_THREE:
-                this.accionPendiente = TipoAccion.FLIP_THREE;
-                this.jugadorPendienteDeAccion = cliente;
-                String candidatosFlip = obtenerListaCandidatos(cliente.getUsuarioActual(), true);
-                cliente.enviarMensaje("SELECCIONAR:FLIP_THREE:¿A quién atacas con 3 cartas?:" + candidatosFlip);
                 break;
                 
             case SECOND_CHANCE:
                 broadcast("ACCION: " + jugador.getNombre() + " obtuvo Second Chance.");
+                if (!enModoFlipThree) siguienteTurno();
+                break;
+
+            case PUNTOS:
+                broadcast("BONUS: " + jugador.getNombre() + " obtuvo +" + carta.getValor() + " puntos!");
+                if (!enModoFlipThree) siguienteTurno();
+                break;
+
+            case MULTIPLICADOR:
+                broadcast("BONUS: " + jugador.getNombre() + " obtuvo un MULTIPLICADOR x" + carta.getValor() + "!");
                 if (!enModoFlipThree) siguienteTurno();
                 break;
         }
